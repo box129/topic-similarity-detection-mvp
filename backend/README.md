@@ -43,7 +43,8 @@ npm run prisma:migrate
 - `npm run dev` - Start the development server with nodemon
 - `npm test` - Run tests with coverage
 - `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:migrate` - Run database migrations
+- `npm run prisma:push` - Push schema changes to database (recommended for Neon/managed databases)
+- `npm run prisma:studio` - Open Prisma Studio to view/edit data
 - `npm run prisma:seed` - Seed the database
 
 ## Dependencies

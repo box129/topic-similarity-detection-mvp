@@ -34,10 +34,13 @@ app.get('/health', (req, res) => {
 
 // Routes will be added here
 
-app.listen(config.port, () => {
-  console.log(`Server is running on port ${config.port}`);
-  console.log(`Environment: ${config.env}`);
-  console.log(`API Version: ${config.apiVersion}`);
-});
+// Only start server if not in test mode
+if (config.env !== 'test') {
+  app.listen(config.port, () => {
+    console.log(`Server is running on port ${config.port}`);
+    console.log(`Environment: ${config.env}`);
+    console.log(`API Version: ${config.apiVersion}`);
+  });
+}
 
 module.exports = app;
