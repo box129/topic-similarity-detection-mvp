@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const config = require('./config/env');
+const logger = require('./config/logger');
+const similarityController = require('./controllers/similarity.controller');
 
 const app = express();
 
@@ -32,7 +34,26 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Routes will be added here
+// API Routes
+app.post('/api/similarity/check', similarityController.checkSimilarity);
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  logger.error(`Error: ${err.message}`, { stack: err.stack });
+  res.status(err.status || 500).json({
+    error: err.name || 'Internal Server Error',
+    message: err.message || 'An unexpected error occurred',
+    ...(config.env === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Route ${req.method} ${req.path} not found`
+  });
+});
 
 // Only start server if not in test mode
 if (config.env !== 'test') {

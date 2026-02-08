@@ -1,0 +1,368 @@
+const request = require('supertest');
+const express = require('express');
+const { checkSimilarity } = require('./similarity.controller');
+
+// Mock dependencies before requiring them
+jest.mock('@prisma/client', () => {
+  const mockQueryRaw = jest.fn();
+  return {
+    PrismaClient: jest.fn().mockImplementation(() => ({
+      $queryRaw: mockQueryRaw
+    })),
+    Prisma: {
+      sql: jest.fn()
+    }
+  };
+});
+
+jest.mock('../services/jaccard.service');
+jest.mock('../services/tfidf.service');
+jest.mock('../services/sbert.service');
+jest.mock('../config/logger', () => ({
+  info: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn()
+}));
+
+const { PrismaClient } = require('@prisma/client');
+const jaccardService = require('../services/jaccard.service');
+const tfidfService = require('../services/tfidf.service');
+const sbertService = require('../services/sbert.service');
+
+describe('Similarity Controller', () => {
+  let app;
+  let mockPrismaInstance;
+
+  beforeEach(() => {
+    // Setup Express app
+    app = express();
+    app.use(express.json());
+    app.post('/api/similarity/check', checkSimilarity);
+    
+    // Error handler
+    app.use((err, req, res, next) => {
+      res.status(500).json({ error: err.message });
+    });
+
+    // Get the mock Prisma instance
+    mockPrismaInstance = new PrismaClient();
+
+    // Clear all mocks
+    jest.clearAllMocks();
+  });
+
+  describe('POST /api/similarity/check', () => {
+    it('should return 400 if topic is missing', async () => {
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.message).toContain('Topic is required');
+    });
+
+    it('should return 400 if topic is empty string', async () => {
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic: '   ' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return LOW risk when no topics exist in database', async () => {
+      // Mock empty database
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([]) // historical_topics
+        .mockResolvedValueOnce([]) // current_session_topics
+        .mockResolvedValueOnce([]); // under_review_topics
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ 
+          topic: 'Machine Learning Applications',
+          keywords: 'neural networks, deep learning'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('topic', 'Machine Learning Applications');
+      expect(response.body).toHaveProperty('keywords', 'neural networks, deep learning');
+      expect(response.body).toHaveProperty('overallRisk', 'LOW');
+      expect(response.body.results.tier1_historical).toHaveLength(0);
+      expect(response.body.results.tier2_current_session).toHaveLength(0);
+      expect(response.body.results.tier3_under_review).toHaveLength(0);
+    });
+
+    it('should successfully check similarity with all algorithms', async () => {
+      // Mock database responses
+      const mockHistoricalTopics = [
+        {
+          id: 1,
+          title: 'Deep Learning for Image Recognition',
+          keywords: 'CNN, neural networks',
+          session_year: '2023',
+          supervisor_name: 'Dr. Smith',
+          category: 'AI',
+          embedding: '[0.1, 0.2, 0.3]' // Mock embedding (should be 384-dim)
+        }
+      ];
+
+      const mockCurrentSessionTopics = [
+        {
+          id: 2,
+          title: 'Machine Learning in Healthcare',
+          keywords: 'ML, medical diagnosis',
+          session_year: '2024',
+          supervisor_name: 'Dr. Johnson',
+          category: 'AI',
+          student_id: 'S12345',
+          embedding: '[0.2, 0.3, 0.4]'
+        }
+      ];
+
+      const mockUnderReviewTopics = [];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce(mockCurrentSessionTopics)
+        .mockResolvedValueOnce(mockUnderReviewTopics);
+
+      // Mock algorithm results
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 1, title: 'Deep Learning for Image Recognition', score: 0.75, matchedKeywords: ['learn', 'neural'] },
+        { topicId: 2, title: 'Machine Learning in Healthcare', score: 0.85, matchedKeywords: ['machin', 'learn'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 1, title: 'Deep Learning for Image Recognition', score: 0.70, matchedTerms: ['deep', 'learning'] },
+        { topicId: 2, title: 'Machine Learning in Healthcare', score: 0.80, matchedTerms: ['machine', 'learning'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 1, title: 'Deep Learning for Image Recognition', score: 0.82, usedPrecomputed: true },
+        { topicId: 2, title: 'Machine Learning in Healthcare', score: 0.88, usedPrecomputed: true }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ 
+          topic: 'Machine Learning Applications',
+          keywords: 'neural networks'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('topic', 'Machine Learning Applications');
+      expect(response.body).toHaveProperty('overallRisk');
+      expect(response.body.results).toHaveProperty('tier1_historical');
+      expect(response.body.results).toHaveProperty('tier2_current_session');
+      expect(response.body.results).toHaveProperty('tier3_under_review');
+      expect(response.body.algorithmStatus).toEqual({
+        jaccard: true,
+        tfidf: true,
+        sbert: true
+      });
+      expect(response.body).toHaveProperty('processingTime');
+    });
+
+    it('should handle SBERT service failure gracefully', async () => {
+      // Mock database responses
+      const mockHistoricalTopics = [
+        {
+          id: 1,
+          title: 'Test Topic',
+          keywords: 'test',
+          session_year: '2023',
+          supervisor_name: 'Dr. Test',
+          category: 'Test',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      // Mock algorithm results
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 1, title: 'Test Topic', score: 0.50, matchedKeywords: ['test'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 1, title: 'Test Topic', score: 0.45, matchedTerms: ['test'] }
+      ]);
+
+      // SBERT service fails
+      sbertService.calculateSbertSimilarities.mockRejectedValue(
+        new Error('SBERT service unavailable')
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic: 'Test Topic' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.algorithmStatus).toEqual({
+        jaccard: true,
+        tfidf: true,
+        sbert: false
+      });
+      // Should still return results using Jaccard and TF-IDF only
+      expect(response.body.results.tier1_historical).toBeDefined();
+    });
+
+    it('should return HIGH risk for current session matches', async () => {
+      // Mock database with high similarity current session topic
+      const mockCurrentSessionTopics = [
+        {
+          id: 1,
+          title: 'Machine Learning Applications',
+          keywords: 'ML, AI',
+          session_year: '2024',
+          supervisor_name: 'Dr. Smith',
+          category: 'AI',
+          student_id: 'S12345',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([]) // historical
+        .mockResolvedValueOnce(mockCurrentSessionTopics) // current session
+        .mockResolvedValueOnce([]); // under review
+
+      // Mock very high similarity scores
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 1, title: 'Machine Learning Applications', score: 0.95, matchedKeywords: ['machin', 'learn', 'applic'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 1, title: 'Machine Learning Applications', score: 0.92, matchedTerms: ['machine', 'learning', 'applications'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 1, title: 'Machine Learning Applications', score: 0.98, usedPrecomputed: false }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic: 'Machine Learning Applications' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.overallRisk).toBe('HIGH');
+      expect(response.body.results.tier2_current_session.length).toBeGreaterThan(0);
+    });
+
+    it('should filter tier 1 to top 5 historical topics', async () => {
+      // Mock 10 historical topics
+      const mockHistoricalTopics = Array.from({ length: 10 }, (_, i) => ({
+        id: i + 1,
+        title: `Historical Topic ${i + 1}`,
+        keywords: 'test',
+        session_year: '2023',
+        supervisor_name: 'Dr. Test',
+        category: 'Test',
+        embedding: null
+      }));
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      // Mock algorithm results with varying scores
+      jaccardService.calculateBatch.mockReturnValue(
+        mockHistoricalTopics.map((t, i) => ({
+          topicId: t.id,
+          title: t.title,
+          score: 0.9 - (i * 0.05),
+          matchedKeywords: ['test']
+        }))
+      );
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue(
+        mockHistoricalTopics.map((t, i) => ({
+          topicId: t.id,
+          title: t.title,
+          score: 0.85 - (i * 0.05),
+          matchedTerms: ['test']
+        }))
+      );
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue(
+        mockHistoricalTopics.map((t, i) => ({
+          topicId: t.id,
+          title: t.title,
+          score: 0.88 - (i * 0.05),
+          usedPrecomputed: false
+        }))
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic: 'Test Topic' });
+
+      expect(response.status).toBe(200);
+      // Should only return top 5
+      expect(response.body.results.tier1_historical).toHaveLength(5);
+    });
+
+    it('should only include tier 2 and tier 3 topics with score >= 0.60', async () => {
+      // Mock current session topics with varying scores
+      const mockCurrentSessionTopics = [
+        {
+          id: 1,
+          title: 'High Similarity Topic',
+          keywords: 'test',
+          session_year: '2024',
+          supervisor_name: 'Dr. Test',
+          category: 'Test',
+          student_id: 'S1',
+          embedding: null
+        },
+        {
+          id: 2,
+          title: 'Low Similarity Topic',
+          keywords: 'test',
+          session_year: '2024',
+          supervisor_name: 'Dr. Test',
+          category: 'Test',
+          student_id: 'S2',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(mockCurrentSessionTopics)
+        .mockResolvedValueOnce([]);
+
+      // Mock scores: one above 0.60, one below
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 1, title: 'High Similarity Topic', score: 0.70, matchedKeywords: ['test'] },
+        { topicId: 2, title: 'Low Similarity Topic', score: 0.30, matchedKeywords: ['test'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 1, title: 'High Similarity Topic', score: 0.65, matchedTerms: ['test'] },
+        { topicId: 2, title: 'Low Similarity Topic', score: 0.25, matchedTerms: ['test'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 1, title: 'High Similarity Topic', score: 0.75, usedPrecomputed: false },
+        { topicId: 2, title: 'Low Similarity Topic', score: 0.35, usedPrecomputed: false }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic: 'Test Topic' });
+
+      expect(response.status).toBe(200);
+      // Only topic 1 should be in tier 2 (combined score >= 0.60)
+      expect(response.body.results.tier2_current_session).toHaveLength(1);
+      expect(response.body.results.tier2_current_session[0].id).toBe(1);
+    });
+  });
+});
