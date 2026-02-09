@@ -165,15 +165,87 @@ Content-Type: application/json
 **Status Codes:**
 - `200 OK` - Similarity check completed successfully
 - `400 Bad Request` - Invalid input (missing or empty topic)
+- `429 Too Many Requests` - Rate limit exceeded
 - `500 Internal Server Error` - Server error during processing
 
-**Error Response:**
+**Error Response Format:**
+
+All errors follow this standardized format:
+
 ```json
 {
-  "error": "Bad Request",
-  "message": "Topic is required and must be a non-empty string"
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": {...},  // Optional, only for validation errors
+    "stack": "..."     // Only in development mode
+  }
 }
 ```
+
+**Example Error Responses:**
+
+**Validation Error (400):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Validation failed",
+    "details": {
+      "topic": "Topic is required and cannot be empty"
+    }
+  }
+}
+```
+
+**Missing Topic (400):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Topic is required and must be a non-empty string"
+  }
+}
+```
+
+**Rate Limit Exceeded (429):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests, please try again later"
+  }
+}
+```
+
+**Database Error (500 - Production):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "DATABASE_ERROR",
+    "message": "A database error occurred. Please try again later."
+  }
+}
+```
+
+**Internal Server Error (500 - Development):**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INTERNAL_SERVER_ERROR",
+    "message": "TypeError: Cannot read property 'x' of undefined",
+    "stack": "TypeError: Cannot read property 'x' of undefined\n    at ..."
+  }
+}
+```
+
+For a complete list of error codes and handling guidelines, see [ERROR-CODE-REFERENCE.md](./ERROR-CODE-REFERENCE.md).
 
 ---
 

@@ -547,7 +547,11 @@ describe('404 Handler', () => {
       .get('/api/non-existent-route')
       .expect(404);
 
-    expect(response.body).toHaveProperty('error', 'Not Found');
+    // New error handler format
+    expect(response.body).toHaveProperty('success', false);
+    expect(response.body).toHaveProperty('error');
+    expect(response.body.error).toHaveProperty('code', 'NOT_FOUND');
+    expect(response.body.error).toHaveProperty('message');
   });
 
   test('should return 404 for wrong HTTP method', async () => {
@@ -555,6 +559,8 @@ describe('404 Handler', () => {
       .get('/api/similarity/check')
       .expect(404);
 
+    // New error handler format
+    expect(response.body).toHaveProperty('success', false);
     expect(response.body).toHaveProperty('error');
   });
 });
