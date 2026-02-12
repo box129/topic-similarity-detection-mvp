@@ -40,8 +40,9 @@ describe('TopicForm Component', () => {
     it('4. renders character counter', () => {
       render(<TopicForm onSubmit={mockOnSubmit} />);
       
-      const charCounter = screen.getByText(/0 chars/i);
-      expect(charCounter).toBeInTheDocument();
+      // Use getAllByText since there are multiple elements with "chars"
+      const charCounters = screen.getAllByText(/0 chars/i);
+      expect(charCounters.length).toBeGreaterThan(0);
     });
   });
 
@@ -122,8 +123,9 @@ describe('TopicForm Component', () => {
       
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
       
-      // Initially 0 chars
-      expect(screen.getByText(/0 chars/i)).toBeInTheDocument();
+      // Initially 0 chars - use getAllByText
+      const initialChars = screen.getAllByText(/0 chars/i);
+      expect(initialChars.length).toBeGreaterThan(0);
       
       // Type text
       await user.type(textarea, 'Hello');
@@ -200,15 +202,21 @@ describe('TopicForm Component', () => {
     });
 
     it('16. handles rapid typing (debounce)', async () => {
+      const mockOnSubmit = vi.fn().mockResolvedValue();
+      const user = userEvent.setup();
+
       render(<TopicForm onSubmit={mockOnSubmit} />);
-      
+
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
-      
-      // Rapid typing simulation
+
+      // Type 7 words
       await user.type(textarea, 'Machine learning algorithms for natural language processing');
-      
-      // Word count should update correctly
-      expect(screen.getByText(/8 \/ 7-24 words/i)).toBeInTheDocument();
+
+      // Check word count using data-testid
+      expect(screen.getByTestId('word-count')).toHaveTextContent('7 / 7-24 words');
+
+      // Should show green border for valid count
+      expect(textarea).toHaveClass('border-green-500');
     });
 
     it('17. trims whitespace correctly', async () => {
@@ -323,37 +331,36 @@ describe('TopicForm Component', () => {
       await user.type(textarea, 'Too short');
       
       const submitButton = screen.getByRole('button', { name: /check similarity/i });
-      await user.click(submitButton);
       
-      // Should show error message
-      await waitFor(() => {
-        expect(screen.getByText(/please enter a valid topic \(7-24 words\)/i)).toBeInTheDocument();
-      });
+      // Button should be disabled for invalid input
+      expect(submitButton).toBeDisabled();
       
       // onSubmit should not be called
       expect(mockOnSubmit).not.toHaveBeenCalled();
     });
 
     it('clears error message when user starts typing', async () => {
+      mockOnSubmit.mockRejectedValue(new Error('Test error'));
       render(<TopicForm onSubmit={mockOnSubmit} />);
       
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
       
-      // Type invalid input and try to submit
-      await user.type(textarea, 'Short');
+      // Type valid input to enable submit
+      await user.type(textarea, 'Machine learning algorithms for natural language processing');
       const submitButton = screen.getByRole('button', { name: /check similarity/i });
       await user.click(submitButton);
       
-      // Error should appear
+      // Error should appear from rejected promise
       await waitFor(() => {
-        expect(screen.getByText(/please enter a valid topic/i)).toBeInTheDocument();
+        expect(screen.getByText(/test error/i)).toBeInTheDocument();
       });
       
       // Start typing again
-      await user.type(textarea, ' text to make it valid length now');
+      await user.clear(textarea);
+      await user.type(textarea, 'New topic');
       
       // Error should be cleared
-      expect(screen.queryByText(/please enter a valid topic/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/test error/i)).not.toBeInTheDocument();
     });
 
     it('handles multiple spaces between words correctly', async () => {

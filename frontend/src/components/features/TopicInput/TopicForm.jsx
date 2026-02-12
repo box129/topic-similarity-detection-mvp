@@ -167,11 +167,13 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
               `}>
                 {validation.message || 'Enter your topic to see validation'}
               </span>
-              <span className={`
-                ${validation.wordCount < MIN_WORDS || validation.wordCount > MAX_WORDS 
-                  ? 'text-red-600' 
-                  : validation.wordCount > 0 
-                    ? 'text-green-600' 
+              <span
+                data-testid="word-count"
+                className={`
+                ${validation.wordCount < MIN_WORDS || validation.wordCount > MAX_WORDS
+                  ? 'text-red-600'
+                  : validation.wordCount > 0
+                    ? 'text-green-600'
                     : 'text-gray-500'
                 }
               `}>
