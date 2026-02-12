@@ -8,6 +8,21 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     setupFiles: './src/test/setup.js',
-    css: true,
+    css: false, // Disable CSS processing to avoid PostCSS/Tailwind dependency issues in tests
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json'],
+      exclude: [
+        'node_modules/',
+        'tests/',
+        'coverage/',
+        '*.config.js',
+        'src/main.jsx'
+      ],
+      statements: 70,
+      branches: 70,
+      functions: 70,
+      lines: 70
+    }
   },
 })
