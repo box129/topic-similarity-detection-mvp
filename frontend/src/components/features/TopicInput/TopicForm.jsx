@@ -1,6 +1,25 @@
 import { useState, useCallback } from 'react';
 import PropTypes from 'prop-types';
 
+// ============ Constants ============
+const MIN_WORDS = 7;
+const MAX_WORDS = 24;
+const MIN_CHARS_GUIDELINE = 50;
+const MAX_CHARS_GUIDELINE = 180;
+const MAX_KEYWORDS_LENGTH = 500;
+
+/**
+ * Sanitize user input by removing dangerous characters and limiting length
+ * @param {string} text - Text to sanitize
+ * @returns {string} Sanitized text
+ */
+const sanitizeInput = (text) => {
+  return text
+    .trim()
+    .replace(/[<>]/g, '') // Remove angle brackets (XSS prevention)
+    .slice(0, 1000);      // Max length safety
+};
+
 /**
  * TopicForm Component
  * 
@@ -15,12 +34,6 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
   const [error, setError] = useState('');
-
-  // Validation constants
-  const MIN_WORDS = 7;
-  const MAX_WORDS = 24;
-  const MIN_CHARS_GUIDELINE = 50;
-  const MAX_CHARS_GUIDELINE = 180;
 
   /**
    * Count words in a string
@@ -101,11 +114,17 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
       setError('Please enter a valid topic (7-24 words)');
       return;
     }
+    
+    // Validate keywords length
+    if (keywords && keywords.trim().length > MAX_KEYWORDS_LENGTH) {
+      setError(`Keywords must be less than ${MAX_KEYWORDS_LENGTH} characters`);
+      return;
+    }
 
     try {
       await onSubmit({
-        topic: topic.trim(),
-        keywords: keywords.trim()
+        topic: sanitizeInput(topic),
+        keywords: sanitizeInput(keywords)
       });
       
       // Clear form on successful submission

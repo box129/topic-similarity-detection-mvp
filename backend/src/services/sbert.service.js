@@ -222,6 +222,58 @@ async function calculateSbertSimilarities(queryText, topics) {
 /**
  * Parse pgvector embedding string to array
  * 
+ * Handles both direct arrays and pgvector format strings
+ * 
+ * @param {Object} topic - Topic object with optional embedding
+ * @param {*} topic.embedding - Embedding (array, string, or null)
+ * @returns {Object} Topic with parsed embedding (or null if invalid)
+ */
+function parseEmbeddingForTopic(topic) {
+  if (!topic || !topic.embedding) {
+    return topic;
+  }
+
+  try {
+    let parsed = topic.embedding;
+    
+    // If already an array, validate it
+    if (Array.isArray(topic.embedding)) {
+      parsed = topic.embedding;
+    } else if (typeof topic.embedding === 'string') {
+      // Parse pgvector format: "[0.1, 0.2, ...]"
+      parsed = JSON.parse(topic.embedding);
+    } else {
+      logger.warn(`Unknown embedding format for topic ${topic.id}: ${typeof topic.embedding}`);
+      return { ...topic, embedding: null };
+    }
+    
+    // Validate parsed result
+    if (!Array.isArray(parsed)) {
+      logger.warn(`Invalid embedding for topic ${topic.id}: expected array, got ${typeof parsed}`);
+      return { ...topic, embedding: null };
+    }
+    
+    if (parsed.length !== 384) {
+      logger.warn(`Invalid embedding for topic ${topic.id}: expected 384-dim array, got ${parsed.length}`);
+      return { ...topic, embedding: null };
+    }
+    
+    // Validate all elements are numbers
+    if (!parsed.every(val => typeof val === 'number' && !isNaN(val))) {
+      logger.warn(`Invalid embedding for topic ${topic.id}: contains non-numeric values`);
+      return { ...topic, embedding: null };
+    }
+    
+    return { ...topic, embedding: parsed };
+  } catch (error) {
+    logger.warn(`Failed to parse embedding for topic ${topic.id}: ${error.message}`);
+    return { ...topic, embedding: null };
+  }
+}
+
+/**
+ * Parse pgvector embedding string to array
+ * 
  * @param {string} pgvectorString - pgvector format string "[0.1, 0.2, ...]"
  * @returns {number[]} Parsed embedding array
  * @throws {Error} If parsing fails
@@ -258,6 +310,7 @@ module.exports = {
   checkHealth,
   calculateSbertSimilarities,
   calculateCosineSimilarity,
+  parseEmbeddingForTopic,
   parsePgvectorEmbedding,
   SBERT_SERVICE_URL
 };

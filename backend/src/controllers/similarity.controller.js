@@ -4,12 +4,79 @@ const tfidfService = require('../services/tfidf.service');
 const sbertService = require('../services/sbert.service');
 const logger = require('../config/logger');
 
-const prisma = new PrismaClient();
+// ============ Configuration Constants ============
+// Risk thresholds for similarity scoring
+const RISK_THRESHOLDS = {
+  HIGH_TIER1: 0.80,      // Any tier1 match >= 80% = HIGH
+  MEDIUM_TIER1: 0.60,    // Any tier1 match >= 60% = MEDIUM
+};
+
+// Algorithm weights for combined scoring
+const ALGORITHM_WEIGHTS = {
+  jaccard: 0.30,
+  tfidf: 0.30,
+  sbert: 0.40,
+  // Fallback weights when SBERT unavailable
+  jaccard_fallback: 0.50,
+  tfidf_fallback: 0.50
+};
+
+// Similarity threshold for tier 2/3 filtering
+const TIER_FILTER_THRESHOLD = 0.60;
+
+// Database query timeout in milliseconds
+const DB_QUERY_TIMEOUT = 10000;
+
+// ============ Prisma Client Singleton ============
+let prisma = null;
+
+function getPrismaClient() {
+  if (!prisma) {
+    prisma = new PrismaClient();
+    
+    // Graceful shutdown on process termination
+    const shutdown = async () => {
+      if (prisma) {
+        await prisma.$disconnect();
+        prisma = null;
+      }
+      process.exit(0);
+    };
+    
+    // Only register handlers once
+    if (!process.listeners('SIGINT').some(l => l.name === 'shutdown')) {
+      process.on('SIGINT', shutdown);
+    }
+    if (!process.listeners('SIGTERM').some(l => l.name === 'shutdown')) {
+      process.on('SIGTERM', shutdown);
+    }
+  }
+  return prisma;
+}
 
 /**
  * Main controller for topic similarity checking
  * Combines Jaccard, TF-IDF, and SBERT algorithms to find similar topics
  */
+
+/**
+ * Helper function to add timeout to a promise
+ * @param {Promise} promise - Promise to wrap with timeout
+ * @param {number} timeoutMs - Timeout in milliseconds
+ * @param {string} operationName - Name of operation for error messages
+ * @returns {Promise} Promise that rejects if timeout exceeded
+ */
+function withTimeout(promise, timeoutMs, operationName) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`${operationName} exceeded ${timeoutMs}ms timeout`)),
+        timeoutMs
+      )
+    )
+  ]);
+}
 
 /**
  * Check similarity between a new topic and existing topics in the database
@@ -40,53 +107,67 @@ async function checkSimilarity(req, res, next) {
     const queryText = keywords ? `${topic} ${keywords}` : topic;
     logger.info(`Checking similarity for topic: "${topic.substring(0, 50)}..."`);
 
-    // 2. Fetch all topics from 3 tables in parallel using Prisma
+    // 2. Fetch all topics from 3 tables in parallel using Prisma with timeout
     logger.info('Fetching topics from database...');
+    
+    const dbClient = getPrismaClient();
     
     const [historicalTopics, currentSessionTopics, underReviewTopics] = await Promise.all([
       // Fetch all historical topics with embeddings
-      prisma.$queryRaw`
-        SELECT 
-          id, 
-          title, 
-          keywords,
-          session_year,
-          supervisor_name,
-          category,
-          embedding::text as embedding
-        FROM historical_topics
-        ORDER BY created_at DESC
-      `,
+      withTimeout(
+        dbClient.$queryRaw`
+          SELECT 
+            id, 
+            title, 
+            keywords,
+            session_year,
+            supervisor_name,
+            category,
+            embedding::text as embedding
+          FROM historical_topics
+          ORDER BY created_at DESC
+        `,
+        DB_QUERY_TIMEOUT,
+        'Historical topics query'
+      ),
       
       // Fetch all current session topics with embeddings
-      prisma.$queryRaw`
-        SELECT 
-          id, 
-          title, 
-          keywords,
-          session_year,
-          supervisor_name,
-          category,
-          embedding::text as embedding
-        FROM current_session_topics
-        ORDER BY created_at DESC
-      `,
+      withTimeout(
+        dbClient.$queryRaw`
+          SELECT 
+            id, 
+            title, 
+            keywords,
+            session_year,
+            supervisor_name,
+            category,
+            embedding::text as embedding
+          FROM current_session_topics
+          ORDER BY created_at DESC
+        `,
+        DB_QUERY_TIMEOUT,
+        'Current session topics query'
+      ),
       
       // Fetch under review topics from last 48 hours only
-      prisma.$queryRaw`
-        SELECT 
-          id, 
-          title, 
-          keywords,
-          session_year,
-          supervisor_name,
-          category,
-          embedding::text as embedding,
-          review_started_at
-        FROM under_review_topics
-        WHERE review_started_at > NOW() - INTERVAL '48 hours'
-        ORDER BY review_started_at DESC
-      `
+      withTimeout(
+        dbClient.$queryRaw`
+          SELECT 
+            id, 
+            title, 
+            keywords,
+            session_year,
+            supervisor_name,
+            category,
+            embedding::text as embedding,
+            review_started_at
+          FROM under_review_topics
+          WHERE review_started_at > NOW() - INTERVAL '48 hours'
+          ORDER BY review_started_at DESC
+        `,
+        DB_QUERY_TIMEOUT,
+        'Under review topics query'
+      )
     ]);
 
     logger.info(`Fetched ${historicalTopics.length} historical, ${currentSessionTopics.length} current session, ${underReviewTopics.length} under review topics`);
@@ -144,8 +225,26 @@ async function checkSimilarity(req, res, next) {
       // SBERT similarity (with graceful degradation)
       sbertService.calculateSbertSimilarities(queryText, allTopics)
         .catch(error => {
-          logger.warn(`SBERT service unavailable, continuing without it: ${error.message}`);
-          return null; // Graceful degradation
+          // Distinguish between timeout/service unavailable vs unexpected errors
+          const isTimeoutError = error.message.includes('timeout') || 
+                                error.message.includes('ECONNREFUSED') ||
+                                error.code === 'ECONNREFUSED';
+          
+          const isRecoverableError = isTimeoutError || 
+                                     error.message.includes('service unavailable');
+          
+          if (isRecoverableError) {
+            logger.warn(`SBERT service unavailable, continuing without it: ${error.message}`);
+            return null; // Graceful degradation for known issues
+          } else {
+            // Log unexpected errors with full context for debugging
+            logger.error(`Unexpected SBERT error: ${error.message}`, {
+              stack: error.stack,
+              queryLength: queryText.length,
+              topicCount: allTopics.length
+            });
+            return null; // Still degrade gracefully but know the reason
+          }
         })
     ]);
 
@@ -202,7 +301,16 @@ async function checkSimilarity(req, res, next) {
 }
 
 /**
- * Combine results from multiple algorithms
+ * Combine results from multiple algorithms with weighted average
+ * 
+ * Weights chosen based on algorithm characteristics:
+ * - Jaccard (30%): Fast, good for exact matches, limited semantic understanding
+ * - TF-IDF (30%): Fast, captures term importance, limited context
+ * - SBERT (40%): Slow but highest semantic accuracy, given higher weight
+ * 
+ * Fallback weights (when SBERT unavailable):
+ * - Jaccard (50%): Standard weight + SBERT allocation
+ * - TF-IDF (50%): Standard weight + SBERT allocation
  * 
  * @param {Array} allTopics - All topics from database
  * @param {Array} jaccardResults - Jaccard similarity results
@@ -257,23 +365,22 @@ function combineAlgorithmResults(allTopics, jaccardResults, tfidfResults, sbertR
   }
 
   // Calculate weighted combined score
-  // Weights: Jaccard 30%, TF-IDF 30%, SBERT 40% (if available)
   const hasSbert = sbertResults !== null;
   const results = Array.from(scoresMap.values()).map(entry => {
     let combinedScore;
     
     if (hasSbert) {
-      // All three algorithms available
+      // All three algorithms available - use defined weights
       combinedScore = (
-        entry.jaccard * 0.30 +
-        entry.tfidf * 0.30 +
-        entry.sbert * 0.40
+        entry.jaccard * ALGORITHM_WEIGHTS.jaccard +
+        entry.tfidf * ALGORITHM_WEIGHTS.tfidf +
+        entry.sbert * ALGORITHM_WEIGHTS.sbert
       );
     } else {
-      // Only Jaccard and TF-IDF available
+      // Only Jaccard and TF-IDF available - fallback weights
       combinedScore = (
-        entry.jaccard * 0.50 +
-        entry.tfidf * 0.50
+        entry.jaccard * ALGORITHM_WEIGHTS.jaccard_fallback +
+        entry.tfidf * ALGORITHM_WEIGHTS.tfidf_fallback
       );
     }
 
@@ -321,7 +428,7 @@ function filterTier1Historical(combinedResults, historicalTopics) {
 }
 
 /**
- * Filter Tier 2: Current session topics with score ≥ 0.60
+ * Filter Tier 2: Current session topics with score >= threshold
  * 
  * @param {Array} combinedResults - Combined algorithm results
  * @param {Array} currentSessionTopics - Current session topics from database
@@ -333,7 +440,7 @@ function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
   const tier2 = combinedResults
     .filter(result => 
       currentSessionIds.has(result.topic.id) && 
-      result.combinedScore >= 0.60
+      result.combinedScore >= TIER_FILTER_THRESHOLD
     )
     .map(result => ({
       id: result.topic.id,
@@ -357,7 +464,7 @@ function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
 }
 
 /**
- * Filter Tier 3: Under review topics with score ≥ 0.60
+ * Filter Tier 3: Under review topics with score >= threshold
  * 
  * @param {Array} combinedResults - Combined algorithm results
  * @param {Array} underReviewTopics - Under review topics from database
@@ -369,7 +476,7 @@ function filterTier3UnderReview(combinedResults, underReviewTopics) {
   const tier3 = combinedResults
     .filter(result => 
       underReviewIds.has(result.topic.id) && 
-      result.combinedScore >= 0.60
+      result.combinedScore >= TIER_FILTER_THRESHOLD
     )
     .map(result => ({
       id: result.topic.id,
@@ -396,28 +503,29 @@ function filterTier3UnderReview(combinedResults, underReviewTopics) {
 /**
  * Calculate overall risk level based on tier results
  * 
+ * Risk levels determined by:
+ * - HIGH: Any tier 2/3 match OR tier 1 match >= HIGH_TIER1 threshold (0.80)
+ * - MEDIUM: Tier 1 match >= MEDIUM_TIER1 threshold (0.60)
+ * - LOW: Everything else
+ * 
  * @param {Array} tier1 - Tier 1 results
  * @param {Array} tier2 - Tier 2 results
  * @param {Array} tier3 - Tier 3 results
  * @returns {string} Risk level: 'LOW', 'MEDIUM', or 'HIGH'
  */
 function calculateOverallRisk(tier1, tier2, tier3) {
-  // HIGH risk conditions:
-  // - Any tier 2 or tier 3 matches (current session or under review)
-  // - Tier 1 has matches with combined score >= 0.80
-  
+  // HIGH risk: Any tier 2 or tier 3 match (current session or under review)
   if (tier2.length > 0 || tier3.length > 0) {
     return 'HIGH';
   }
 
-  if (tier1.length > 0 && tier1[0].scores.combined >= 0.80) {
+  // HIGH risk: Tier 1 match exceeds high threshold
+  if (tier1.length > 0 && tier1[0].scores.combined >= RISK_THRESHOLDS.HIGH_TIER1) {
     return 'HIGH';
   }
 
-  // MEDIUM risk conditions:
-  // - Tier 1 has matches with combined score >= 0.60
-  
-  if (tier1.length > 0 && tier1[0].scores.combined >= 0.60) {
+  // MEDIUM risk: Tier 1 match exceeds medium threshold
+  if (tier1.length > 0 && tier1[0].scores.combined >= RISK_THRESHOLDS.MEDIUM_TIER1) {
     return 'MEDIUM';
   }
 

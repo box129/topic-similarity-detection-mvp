@@ -1,6 +1,61 @@
 import { useMemo } from 'react';
 import PropTypes from 'prop-types';
 
+// ============ Constants ============
+// Risk level configuration with colors and messaging
+const RISK_CONFIGS = {
+  LOW: {
+    color: 'green',
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-500',
+    textColor: 'text-green-800',
+    iconColor: 'text-green-600',
+    title: 'Low Risk',
+    recommendation: 'Proceed with approval - No significant overlap detected'
+  },
+  MEDIUM: {
+    color: 'yellow',
+    bgColor: 'bg-yellow-50',
+    borderColor: 'border-yellow-500',
+    textColor: 'text-yellow-800',
+    iconColor: 'text-yellow-600',
+    title: 'Medium Risk',
+    recommendation: 'Review flagged topics - Some overlap detected, manual review recommended'
+  },
+  HIGH: {
+    color: 'red',
+    bgColor: 'bg-red-50',
+    borderColor: 'border-red-500',
+    textColor: 'text-red-800',
+    iconColor: 'text-red-600',
+    title: 'High Risk',
+    recommendation: 'Request modification - Significant overlap detected, topic revision required'
+  }
+};
+
+// Algorithm badge color mapping
+const ALGORITHM_BADGE_COLORS = {
+  jaccard: 'bg-blue-100 text-blue-800',
+  tfidf: 'bg-purple-100 text-purple-800',
+  sbert: 'bg-indigo-100 text-indigo-800'
+};
+
+// ============ Utility Functions ============
+/**
+ * Format similarity score as percentage
+ */
+const formatScore = (score) => {
+  if (score === null || score === undefined) return 'N/A';
+  return `${Math.round(score)}%`;
+};
+
+/**
+ * Get algorithm badge color
+ */
+const getAlgorithmBadgeColor = (algorithm) => {
+  return ALGORITHM_BADGE_COLORS[algorithm.toLowerCase()] || 'bg-gray-100 text-gray-800';
+};
+
 /**
  * ResultsDisplay Component
  * 
@@ -17,59 +72,8 @@ import PropTypes from 'prop-types';
  * @param {boolean} props.results.sbert_available - Whether SBERT scores are available
  */
 const ResultsDisplay = ({ results }) => {
-  // Risk level configuration
-  const riskConfig = useMemo(() => {
-    const configs = {
-      LOW: {
-        color: 'green',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-500',
-        textColor: 'text-green-800',
-        iconColor: 'text-green-600',
-        title: 'Low Risk',
-        recommendation: 'Proceed with approval - No significant overlap detected'
-      },
-      MEDIUM: {
-        color: 'yellow',
-        bgColor: 'bg-yellow-50',
-        borderColor: 'border-yellow-500',
-        textColor: 'text-yellow-800',
-        iconColor: 'text-yellow-600',
-        title: 'Medium Risk',
-        recommendation: 'Review flagged topics - Some overlap detected, manual review recommended'
-      },
-      HIGH: {
-        color: 'red',
-        bgColor: 'bg-red-50',
-        borderColor: 'border-red-500',
-        textColor: 'text-red-800',
-        iconColor: 'text-red-600',
-        title: 'High Risk',
-        recommendation: 'Request modification - Significant overlap detected, topic revision required'
-      }
-    };
-    return configs[results.risk_level] || configs.LOW;
-  }, [results.risk_level]);
-
-  /**
-   * Format similarity score as percentage
-   */
-  const formatScore = (score) => {
-    if (score === null || score === undefined) return 'N/A';
-    return `${Math.round(score)}%`;
-  };
-
-  /**
-   * Get algorithm badge color
-   */
-  const getAlgorithmBadgeColor = (algorithm) => {
-    const colors = {
-      jaccard: 'bg-blue-100 text-blue-800',
-      tfidf: 'bg-purple-100 text-purple-800',
-      sbert: 'bg-indigo-100 text-indigo-800'
-    };
-    return colors[algorithm.toLowerCase()] || 'bg-gray-100 text-gray-800';
-  };
+  // Risk level configuration - simple lookup, no memoization needed
+  const riskConfig = RISK_CONFIGS[results.risk_level] || RISK_CONFIGS.LOW;
 
   /**
    * Render a single topic match
@@ -297,24 +301,25 @@ const ResultsDisplay = ({ results }) => {
   );
 };
 
+// ============ PropTypes Definition ============
+const MATCH_SHAPE = PropTypes.shape({
+  id: PropTypes.oneOfType([PropTypes.number, PropTypes.string]).isRequired,
+  topic_title: PropTypes.string.isRequired,
+  supervisor_name: PropTypes.string,
+  session_year: PropTypes.string,
+  status: PropTypes.string,
+  jaccard_score: PropTypes.number,
+  tfidf_score: PropTypes.number,
+  sbert_score: PropTypes.number
+});
+
 ResultsDisplay.propTypes = {
   results: PropTypes.shape({
     risk_level: PropTypes.oneOf(['LOW', 'MEDIUM', 'HIGH']).isRequired,
     max_similarity: PropTypes.number.isRequired,
-    tier1_matches: PropTypes.arrayOf(
-      PropTypes.shape({
-        id: PropTypes.number,
-        topic_title: PropTypes.string.isRequired,
-        supervisor_name: PropTypes.string,
-        session_year: PropTypes.string,
-        status: PropTypes.string,
-        jaccard_score: PropTypes.number,
-        tfidf_score: PropTypes.number,
-        sbert_score: PropTypes.number
-      })
-    ),
-    tier2_matches: PropTypes.array,
-    tier3_matches: PropTypes.array,
+    tier1_matches: PropTypes.arrayOf(MATCH_SHAPE),
+    tier2_matches: PropTypes.arrayOf(MATCH_SHAPE),
+    tier3_matches: PropTypes.arrayOf(MATCH_SHAPE),
     sbert_available: PropTypes.bool.isRequired
   }).isRequired
 };

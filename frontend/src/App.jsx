@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import TopicForm from './components/features/TopicInput/TopicForm';
 import ResultsDisplay from './components/features/Results/ResultsDisplay';
@@ -7,30 +7,98 @@ function App() {
   const [results, setResults] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
+  
+  // Create abort controller for cancelling requests
+  const abortControllerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      // Mark component as unmounted
+      isMountedRef.current = false;
+      // Cancel in-flight requests when component unmounts
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   /**
    * Handle topic similarity check submission
    * @param {Object} data - Form data with topic and keywords
    */
   const handleSubmit = async (data) => {
+    // Abort any previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+    
     setIsLoading(true);
     setError(null);
     setResults(null);
 
     try {
       // Call API to check topic similarity
-      const response = await axios.post('/api/similarity/check', data);
+      const response = await axios.post('/api/similarity/check', data, {
+        signal: abortControllerRef.current.signal
+      });
 
-      // Simulate network delay for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Only update state if component still mounted
+      if (!isMountedRef.current) return;
+      
+      // Validate response structure before setting
+      if (!response.data || typeof response.data !== 'object') {
+        throw new Error('Invalid response format from server');
+      }
 
-      setResults(response.data);
+      // Brief loading visual for better UX (300ms)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      if (isMountedRef.current) {
+        setResults(response.data);
+      }
     } catch (err) {
-      const errorMessage = err.response?.data?.message || err.message || 'An error occurred while checking similarity';
+      // Don't update state if component unmounted
+      if (!isMountedRef.current) return;
+      
+      // Don't show error if request was aborted by user
+      if (err.name === 'AbortError') {
+        console.info('Similarity check was cancelled');
+        return;
+      }
+      
+      // Distinguish error types for better messaging
+      let errorMessage = 'An error occurred while checking similarity';
+      
+      if (err.response) {
+        // Server responded with error
+        errorMessage = err.response.data?.message || 
+                       `Server error (${err.response.status}): ${err.response.statusText}`;
+      } else if (err.request) {
+        // Request made but no response
+        errorMessage = 'No response from server. Please check your connection.';
+      } else if (err.message) {
+        // Error in request setup
+        errorMessage = err.message;
+      }
+      
       setError(errorMessage);
-      throw new Error(errorMessage);
+      
+      // Log error for debugging (not re-throwing)
+      console.error('Similarity check failed:', {
+        message: err.message,
+        status: err.response?.status,
+        timestamp: new Date().toISOString()
+      });
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
