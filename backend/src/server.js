@@ -4,7 +4,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const config = require('./config/env');
 const logger = require('./config/logger');
-const similarityController = require('./controllers/similarity.controller');
+// Lazy-load the similarity controller to avoid Prisma initialization blocking
+let similarityController;
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.middleware');
 
 const app = express();
@@ -36,7 +37,12 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.post('/api/similarity/check', similarityController.checkSimilarity);
+app.post('/api/similarity/check', (req, res, next) => {
+  if (!similarityController) {
+    similarityController = require('./controllers/similarity.controller');
+  }
+  similarityController.checkSimilarity(req, res, next);
+});
 
 // 404 handler (must be before error handler)
 app.use(notFoundHandler);
@@ -46,10 +52,17 @@ app.use(errorHandler);
 
 // Only start server if not in test mode
 if (config.env !== 'test') {
-  app.listen(config.port, () => {
+  const server = app.listen(config.port, '0.0.0.0');
+  
+  server.on('listening', () => {
     console.log(`Server is running on port ${config.port}`);
     console.log(`Environment: ${config.env}`);
     console.log(`API Version: ${config.apiVersion}`);
+  });
+
+  server.on('error', (err) => {
+    console.error('Server error:', err);
+    process.exit(1);
   });
 }
 

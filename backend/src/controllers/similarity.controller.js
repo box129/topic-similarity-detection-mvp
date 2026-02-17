@@ -29,19 +29,22 @@ const DB_QUERY_TIMEOUT = 10000;
 
 // ============ Prisma Client Singleton ============
 let prisma = null;
+let prismaConnecting = false;
 
 function getPrismaClient() {
-  if (!prisma) {
-    prisma = new PrismaClient();
-    
-    // Graceful shutdown on process termination
-    const shutdown = async () => {
-      if (prisma) {
-        await prisma.$disconnect();
-        prisma = null;
-      }
-      process.exit(0);
-    };
+  if (!prisma && !prismaConnecting) {
+    prismaConnecting = true;
+    try {
+      prisma = new PrismaClient();
+      logger.info('Prisma Client initialized successfully');
+    } catch (err) {
+      logger.error('Failed to initialize Prisma Client:', err);
+      prismaConnecting = false;
+      throw err;
+    }
+  }
+  return prisma;
+}
     
     // Only register handlers once
     if (!process.listeners('SIGINT').some(l => l.name === 'shutdown')) {
