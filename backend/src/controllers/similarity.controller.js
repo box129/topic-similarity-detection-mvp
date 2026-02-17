@@ -45,17 +45,6 @@ function getPrismaClient() {
   }
   return prisma;
 }
-    
-    // Only register handlers once
-    if (!process.listeners('SIGINT').some(l => l.name === 'shutdown')) {
-      process.on('SIGINT', shutdown);
-    }
-    if (!process.listeners('SIGTERM').some(l => l.name === 'shutdown')) {
-      process.on('SIGTERM', shutdown);
-    }
-  }
-  return prisma;
-}
 
 /**
  * Main controller for topic similarity checking
