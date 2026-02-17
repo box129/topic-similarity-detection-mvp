@@ -28,25 +28,25 @@ You'll see a clean form with three fields:
 
 ### Example 1 - Healthcare
 ```
-Topic:    Machine learning for disease diagnosis
+Topic:    Machine learning for disease diagnosis in healthcare
 Keywords: neural networks, medical AI, diagnosis, prediction
 ```
 
 ### Example 2 - Education
 ```
-Topic:    AI-powered personalized learning
+Topic:    AI-powered personalized learning systems for students
 Keywords: machine learning, adaptive learning, student modeling
 ```
 
 ### Example 3 - Finance
 ```
-Topic:    Blockchain for secure transactions
+Topic:    Blockchain for secure financial transactions and payments
 Keywords: cryptocurrency, distributed ledger, security
 ```
 
 ### Example 4 - IoT
 ```
-Topic:    IoT security in smart homes
+Topic:    Internet of Things security in smart home systems
 Keywords: sensors, encryption, wireless networks
 ```
 
@@ -176,7 +176,7 @@ ELSE risk = LOW 🟢
 
 ### ❌ DON'T DO THIS:
 
-1. ❌ Submit very short topics (< 3 words)
+1. ❌ Submit topics with fewer than 7 words (minimum required)
 2. ❌ Use unusual spelling or abbreviations
 3. ❌ Ignore HIGH risk warnings
 4. ❌ Submit similar topics when flagged
@@ -189,25 +189,25 @@ Try these topics to see how the system works:
 
 ### Medical/Healthcare
 ```
-Topic:    "Deep learning for medical image segmentation"
+Topic:    "Deep learning for medical image segmentation analysis"
 Keywords: "CNN, radiology, computer vision, healthcare"
 ```
 
 ### Technology
 ```
-Topic:    "IoT security architecture and implementation"
+Topic:    "Internet of Things security architecture and implementation"
 Keywords: "Internet of Things, encryption, wireless, security"
 ```
 
 ### Education
 ```
-Topic:    "Adaptive learning systems using machine learning"
+Topic:    "Adaptive learning systems using machine learning technologies"
 Keywords: "personalization, student modeling, AI, education"
 ```
 
 ### Finance
 ```
-Topic:    "Cryptocurrency price prediction using AI"
+Topic:    "Cryptocurrency price prediction using artificial intelligence techniques"
 Keywords: "blockchain, neural networks, forecasting, digital currency"
 ```
 
@@ -253,7 +253,7 @@ curl -X POST "http://localhost:8080/api/similarity/check" \
 **Request:**
 ```json
 {
-  "topic": "Machine learning for disease diagnosis",
+  "topic": "Machine learning for disease diagnosis in healthcare",
   "keywords": "neural networks, medical AI, healthcare"
 }
 ```
