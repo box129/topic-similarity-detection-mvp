@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState } from 'react';
 import PropTypes from 'prop-types';
 
 // ============ Constants ============
@@ -11,7 +11,7 @@ const RISK_CONFIGS = {
     textColor: 'text-green-800',
     iconColor: 'text-green-600',
     title: 'Low Risk',
-    recommendation: 'Proceed with approval - No significant overlap detected'
+    recommendation: 'Your topic appears unique. You can likely proceed with confidence.'
   },
   MEDIUM: {
     color: 'yellow',
@@ -20,7 +20,7 @@ const RISK_CONFIGS = {
     textColor: 'text-yellow-800',
     iconColor: 'text-yellow-600',
     title: 'Medium Risk',
-    recommendation: 'Review flagged topics - Some overlap detected, manual review recommended'
+    recommendation: 'Some overlap detected. Consider reviewing the flagged topics to refine your focus.'
   },
   HIGH: {
     color: 'red',
@@ -29,7 +29,7 @@ const RISK_CONFIGS = {
     textColor: 'text-red-800',
     iconColor: 'text-red-600',
     title: 'High Risk',
-    recommendation: 'Request modification - Significant overlap detected, topic revision required'
+    recommendation: 'Significant overlap detected. We recommend revising your topic to differentiate it.'
   }
 };
 
@@ -59,104 +59,173 @@ const getAlgorithmBadgeColor = (algorithm) => {
 /**
  * ResultsDisplay Component
  * 
- * Displays similarity check results with risk assessment, tiered matches,
- * and algorithm-specific scores.
+ * Displays similarity check results with risk assessment and tiered matches.
+ * Algorithm scores are hidden by default (expandable for advanced users).
+ * Tier names are user-friendly: "Similar Past Projects", "Current Session Projects", "Under Review"
  * 
  * @param {Object} props - Component props
  * @param {Object} props.results - Results object from API
  * @param {string} props.results.risk_level - Risk level: LOW, MEDIUM, HIGH
  * @param {number} props.results.max_similarity - Maximum similarity score (0-100)
- * @param {Array} props.results.tier1_matches - Top 5 similar topics
- * @param {Array} props.results.tier2_matches - Medium similarity topics (optional)
- * @param {Array} props.results.tier3_matches - Lower similarity topics (optional)
+ * @param {Array} props.results.tier1_matches - Top 5 similar topics (historical)
+ * @param {Array} props.results.tier2_matches - Current session matches (≥60%)
+ * @param {Array} props.results.tier3_matches - Under review matches (≥60%)
  * @param {boolean} props.results.sbert_available - Whether SBERT scores are available
  */
 const ResultsDisplay = ({ results }) => {
-  // Risk level configuration - simple lookup, no memoization needed
+  // Track which matches have expanded details
+  const [expandedMatches, setExpandedMatches] = useState({});
+
+  // Risk level configuration
   const riskConfig = RISK_CONFIGS[results.risk_level] || RISK_CONFIGS.LOW;
 
   /**
-   * Render a single topic match
+   * Toggle details visibility for a match
    */
-  const renderTopicMatch = (match, index) => (
-    <div
-      key={`${match.id}-${index}`}
-      data-testid={`topic-match-${index}`}
-      className="p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-    >
-      {/* Topic Title */}
-      <h4 className="text-lg font-semibold text-gray-900 mb-2" data-testid={`topic-title-${index}`}>
-        {match.topic_title}
-      </h4>
-
-      {/* Metadata */}
-      <div className="flex flex-wrap gap-3 mb-3 text-sm text-gray-600">
-        {match.supervisor_name && (
-          <span data-testid={`supervisor-${index}`}>
-            <strong>Supervisor:</strong> {match.supervisor_name}
-          </span>
-        )}
-        {match.session_year && (
-          <span data-testid={`session-${index}`}>
-            <strong>Session:</strong> {match.session_year}
-          </span>
-        )}
-        {match.status && (
-          <span data-testid={`status-${index}`}>
-            <strong>Status:</strong> {match.status}
-          </span>
-        )}
-      </div>
-
-      {/* Algorithm Scores */}
-      <div className="flex flex-wrap gap-2">
-        {match.jaccard_score !== undefined && (
-          <span
-            data-testid={`jaccard-badge-${index}`}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('jaccard')}`}
-          >
-            Jaccard: {formatScore(match.jaccard_score)}
-          </span>
-        )}
-        {match.tfidf_score !== undefined && (
-          <span
-            data-testid={`tfidf-badge-${index}`}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('tfidf')}`}
-          >
-            TF-IDF: {formatScore(match.tfidf_score)}
-          </span>
-        )}
-        {match.sbert_score !== undefined && match.sbert_score !== null && (
-          <span
-            data-testid={`sbert-badge-${index}`}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('sbert')}`}
-          >
-            SBERT: {formatScore(match.sbert_score)}
-          </span>
-        )}
-      </div>
-    </div>
-  );
+  const toggleDetails = (matchId) => {
+    setExpandedMatches(prev => ({
+      ...prev,
+      [matchId]: !prev[matchId]
+    }));
+  };
 
   /**
-   * Render tier section
+   * Get similarity level descriptor (user-friendly)
    */
-  const renderTierSection = (tierName, matches, description) => {
+  const getSimilarityLevel = (score) => {
+    if (score >= 0.75) return { label: 'Very High Match', color: 'text-red-600 font-semibold' };
+    if (score >= 0.60) return { label: 'High Match', color: 'text-orange-600 font-semibold' };
+    if (score >= 0.45) return { label: 'Moderate Match', color: 'text-yellow-600' };
+    return { label: 'Low Match', color: 'text-green-600' };
+  };
+
+  /**
+   * Render a single topic match with expandable algorithm scores
+   */
+  const renderTopicMatch = (match, index, tierKey) => {
+    const matchKey = `${tierKey}-${match.id}-${index}`;
+    const isExpanded = expandedMatches[matchKey];
+    const score = match.combined_similarity_score || match.jaccard_score || 0;
+    const similarityLevel = getSimilarityLevel(score);
+
+    return (
+      <div
+        key={matchKey}
+        data-testid={`topic-match-${index}`}
+        className="p-4 bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
+      >
+        {/* Topic Title */}
+        <h4 className="text-lg font-semibold text-gray-900 mb-2" data-testid={`topic-title-${index}`}>
+          {match.topic_title}
+        </h4>
+
+        {/* Similarity Level (User-Friendly, Prominent) */}
+        <div className="mb-3">
+          <p className={`text-sm ${similarityLevel.color}`}>
+            ⚠ {similarityLevel.label}
+          </p>
+        </div>
+
+        {/* Metadata */}
+        <div className="flex flex-wrap gap-3 mb-3 text-sm text-gray-600">
+          {match.supervisor_name && (
+            <span data-testid={`supervisor-${index}`}>
+              <strong>Supervisor:</strong> {match.supervisor_name}
+            </span>
+          )}
+          {match.session_year && (
+            <span data-testid={`session-${index}`}>
+              <strong>Year:</strong> {match.session_year}
+            </span>
+          )}
+          {match.status && (
+            <span data-testid={`status-${index}`}>
+              <strong>Status:</strong> {match.status}
+            </span>
+          )}
+        </div>
+
+        {/* Expandable Technical Details */}
+        <button
+          onClick={() => toggleDetails(matchKey)}
+          className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center transition-colors"
+          data-testid={`expand-details-${index}`}
+        >
+          {isExpanded ? (
+            <>
+              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              Hide Technical Details
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+              Show Technical Details
+            </>
+          )}
+        </button>
+
+        {/* Algorithm Scores (Hidden by Default) */}
+        {isExpanded && (
+          <div className="mt-3 pt-3 border-t border-gray-200" data-testid={`algorithm-details-${index}`}>
+            <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Algorithm Scores (Technical)</p>
+            <div className="flex flex-wrap gap-2">
+              {match.jaccard_score !== undefined && (
+                <span
+                  data-testid={`jaccard-badge-${index}`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('jaccard')}`}
+                  title="Exact token overlap"
+                >
+                  Exact Match: {formatScore(match.jaccard_score)}
+                </span>
+              )}
+              {match.tfidf_score !== undefined && (
+                <span
+                  data-testid={`tfidf-badge-${index}`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('tfidf')}`}
+                  title="Term importance weighting"
+                >
+                  Term Weight: {formatScore(match.tfidf_score)}
+                </span>
+              )}
+              {match.sbert_score !== undefined && match.sbert_score !== null && (
+                <span
+                  data-testid={`sbert-badge-${index}`}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${getAlgorithmBadgeColor('sbert')}`}
+                  title="Semantic understanding"
+                >
+                  Semantic: {formatScore(match.sbert_score)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /**
+   * Render tier section with user-friendly naming
+   */
+  const renderTierSection = (tierKey, tierTitle, tierDescription, matches) => {
     if (!matches || matches.length === 0) return null;
 
     return (
-      <div className="mb-8" data-testid={`tier-section-${tierName.toLowerCase()}`}>
+      <div className="mb-8" data-testid={`tier-section-${tierKey}`}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-gray-800" data-testid={`tier-title-${tierName.toLowerCase()}`}>
-            {tierName}
+          <h3 className="text-xl font-bold text-gray-800" data-testid={`tier-title-${tierKey}`}>
+            {tierTitle}
           </h3>
-          <span className="text-sm text-gray-600">
+          <span className="inline-block bg-gray-200 text-gray-800 text-xs font-semibold px-3 py-1 rounded-full">
             {matches.length} {matches.length === 1 ? 'match' : 'matches'}
           </span>
         </div>
-        <p className="text-sm text-gray-600 mb-4">{description}</p>
+        <p className="text-sm text-gray-600 mb-4">{tierDescription}</p>
         <div className="space-y-3">
-          {matches.map((match, index) => renderTopicMatch(match, index))}
+          {matches.map((match, index) => renderTopicMatch(match, index, tierKey))}
         </div>
       </div>
     );
@@ -164,7 +233,7 @@ const ResultsDisplay = ({ results }) => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6" data-testid="results-display">
-      {/* Risk Banner */}
+      {/* Risk Assessment Banner */}
       <div
         data-testid="risk-banner"
         data-risk-level={results.risk_level}
@@ -206,61 +275,52 @@ const ResultsDisplay = ({ results }) => {
             <p className={`mt-2 text-sm ${riskConfig.textColor}`} data-testid="risk-recommendation">
               {riskConfig.recommendation}
             </p>
-            <p className={`mt-2 text-sm font-semibold ${riskConfig.textColor}`} data-testid="max-similarity">
-              Maximum Similarity: {formatScore(results.max_similarity)}
+            <p className={`mt-3 text-sm font-semibold ${riskConfig.textColor}`} data-testid="max-similarity">
+              Maximum Similarity Score: {formatScore(results.max_similarity)}
             </p>
           </div>
         </div>
       </div>
 
-      {/* SBERT Warning */}
+      {/* SBERT Degradation Notice */}
       {!results.sbert_available && (
         <div
           data-testid="sbert-warning"
-          className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded"
+          className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded"
         >
           <div className="flex">
             <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-yellow-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                  clipRule="evenodd"
-                />
+              <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
               </svg>
             </div>
             <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                <strong>SBERT Unavailable:</strong> Advanced semantic similarity scores are not available. 
-                Results are based on Jaccard and TF-IDF algorithms only.
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Semantic analysis is temporarily unavailable. Results are based on exact match and term weighting analysis.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Results Summary */}
+      {/* Results Overview Cards */}
       <div className="bg-gray-50 rounded-lg p-6 mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Similarity Analysis Results</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-          <div className="bg-white p-4 rounded-lg shadow-sm">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Similarity Analysis Summary</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white p-4 rounded-lg shadow-sm border-b-4 border-blue-200">
             <p className="text-sm text-gray-600 mb-1">Risk Level</p>
             <p className={`text-2xl font-bold ${riskConfig.textColor}`} data-testid="summary-risk">
               {results.risk_level}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <p className="text-sm text-gray-600 mb-1">Max Similarity</p>
+          <div className="bg-white p-4 rounded-lg shadow-sm border-b-4 border-blue-200">
+            <p className="text-sm text-gray-600 mb-1">Highest Similarity</p>
             <p className="text-2xl font-bold text-gray-900" data-testid="summary-max-similarity">
               {formatScore(results.max_similarity)}
             </p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm">
-            <p className="text-sm text-gray-600 mb-1">Total Matches</p>
+          <div className="bg-white p-4 rounded-lg shadow-sm border-b-4 border-blue-200">
+            <p className="text-sm text-gray-600 mb-1">Total Matches Found</p>
             <p className="text-2xl font-bold text-gray-900" data-testid="summary-total-matches">
               {(results.tier1_matches?.length || 0) + 
                (results.tier2_matches?.length || 0) + 
@@ -270,31 +330,39 @@ const ResultsDisplay = ({ results }) => {
         </div>
       </div>
 
-      {/* Tier 1: High Similarity Matches */}
+      {/* Tier 1: Similar Past Projects (Historical Top 5) */}
       {renderTierSection(
-        'Tier 1: High Similarity Matches',
-        results.tier1_matches,
-        'Topics with the highest similarity scores (top 5 matches)'
+        'tier1',
+        '📚 Similar Past Projects',
+        'The 5 most similar topics from previous submission cycles. Review these to understand how your topic compares.',
+        results.tier1_matches
       )}
 
-      {/* Tier 2: Medium Similarity Matches */}
+      {/* Tier 2: Current Session Projects */}
       {renderTierSection(
-        'Tier 2: Medium Similarity Matches',
-        results.tier2_matches,
-        'Topics with moderate similarity scores'
+        'tier2',
+        '📝 Current Session Projects',
+        'Topics from current submissions with significant similarity to yours. These may be competing proposals.',
+        results.tier2_matches
       )}
 
-      {/* Tier 3: Lower Similarity Matches */}
+      {/* Tier 3: Under Review Projects */}
       {renderTierSection(
-        'Tier 3: Lower Similarity Matches',
-        results.tier3_matches,
-        'Topics with lower but notable similarity scores'
+        'tier3',
+        '⏳ Under Review Projects',
+        'Recently submitted topics under review that show some overlap with your submission.',
+        results.tier3_matches
       )}
 
       {/* No Matches Message */}
-      {(!results.tier1_matches || results.tier1_matches.length === 0) && (
-        <div className="text-center py-8" data-testid="no-matches">
-          <p className="text-gray-500">No similar topics found.</p>
+      {(!results.tier1_matches || results.tier1_matches.length === 0) && 
+       (!results.tier2_matches || results.tier2_matches.length === 0) && 
+       (!results.tier3_matches || results.tier3_matches.length === 0) && (
+        <div className="text-center py-12 bg-green-50 rounded-lg border border-green-200" data-testid="no-matches">
+          <svg className="mx-auto h-12 w-12 text-green-600 mb-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <p className="text-green-800 font-medium">No similar topics found. Your topic appears unique!</p>
         </div>
       )}
     </div>
@@ -310,7 +378,8 @@ const MATCH_SHAPE = PropTypes.shape({
   status: PropTypes.string,
   jaccard_score: PropTypes.number,
   tfidf_score: PropTypes.number,
-  sbert_score: PropTypes.number
+  sbert_score: PropTypes.number,
+  combined_similarity_score: PropTypes.number
 });
 
 ResultsDisplay.propTypes = {

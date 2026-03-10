@@ -14,6 +14,14 @@ import sys
 import hashlib
 import random
 
+# SBERT imports
+try:
+    from sentence_transformers import SentenceTransformer
+    SBERT_AVAILABLE = True
+except ImportError:
+    logger.warning("sentence-transformers not available, falling back to lightweight mode")
+    SBERT_AVAILABLE = False
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -50,13 +58,22 @@ model = None
 
 def generate_deterministic_embedding(text: str) -> List[float]:
     """
-    Generate a deterministic 384-dimensional embedding for the given text.
-    Uses a lightweight approach without PyTorch dependencies.
+    Generate embeddings for the given text.
+    Uses real SBERT model if available, otherwise falls back to hash-based approach.
     """
-    # Use hash-based approach for consistent embeddings
+    if SBERT_AVAILABLE and model is not None:
+        # Use real SBERT model
+        try:
+            embedding = model.encode(text, convert_to_numpy=True).tolist()
+            return embedding
+        except Exception as e:
+            logger.error(f"SBERT encoding failed: {e}, falling back to hash-based")
+            # Fall back to hash-based approach
+
+    # Fallback: Use hash-based approach for consistent embeddings
     hash_obj = hashlib.sha256(text.lower().encode())
     hash_bytes = hash_obj.digest()
-    
+
     # Generate 384 dimensions from hash
     embedding = []
     for i in range(EMBEDDING_DIMENSION):
@@ -66,17 +83,32 @@ def generate_deterministic_embedding(text: str) -> List[float]:
         value = (int.from_bytes(hash_bytes[byte_idx:byte_idx+1], 'big') + bit_shift) / 256.0
         # Normalize to roughly [-1, 1] range
         embedding.append((value * 2) - 1)
-    
+
     return embedding
 
 
 def load_model():
     """Initialize the embedding service."""
-    global model
-    logger.info(f"Initializing SBERT lightweight service: {MODEL_NAME}")
-    logger.info(f"Using deterministic hash-based embeddings (dimension: {EMBEDDING_DIMENSION})")
-    logger.info("Model: all-MiniLM-L6-v2 (lightweight mode)")
-    model = True  # Flag to indicate model is ready
+    global model, SBERT_AVAILABLE
+    logger.info(f"Initializing SBERT service: {MODEL_NAME}")
+
+    if SBERT_AVAILABLE:
+        try:
+            logger.info("Loading real SBERT model...")
+            model = SentenceTransformer(MODEL_NAME)
+            logger.info(f"✅ Real SBERT model loaded successfully (dimension: {EMBEDDING_DIMENSION})")
+            logger.info("Using semantic embeddings with sentence-transformers")
+        except Exception as e:
+            logger.error(f"Failed to load SBERT model: {e}")
+            logger.warning("Falling back to lightweight hash-based embeddings")
+            SBERT_AVAILABLE = False
+            model = True  # Flag for fallback mode
+            logger.info("Using deterministic hash-based embeddings (fallback mode)")
+    else:
+        logger.info(f"Using deterministic hash-based embeddings (dimension: {EMBEDDING_DIMENSION})")
+        logger.info("Model: all-MiniLM-L6-v2 (lightweight mode)")
+        model = True  # Flag to indicate model is ready
+
     logger.info("Embedding service ready!")
 
 

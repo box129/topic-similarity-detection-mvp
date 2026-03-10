@@ -8,6 +8,16 @@ const MIN_CHARS_GUIDELINE = 50;
 const MAX_CHARS_GUIDELINE = 180;
 const MAX_KEYWORDS_LENGTH = 500;
 
+const RESEARCH_CATEGORIES = [
+  '',
+  'Epidemiology',
+  'Infectious Diseases',
+  'Biostatistics',
+  'Health Policy',
+  'Maternal & Child Health',
+  'Environmental Health',
+];
+
 /**
  * Sanitize user input by removing dangerous characters and limiting length
  * @param {string} text - Text to sanitize
@@ -33,6 +43,7 @@ const sanitizeInput = (text) => {
 const TopicForm = ({ onSubmit, isLoading = false }) => {
   const [topic, setTopic] = useState('');
   const [keywords, setKeywords] = useState('');
+  const [category, setCategory] = useState('');
   const [error, setError] = useState('');
 
   /**
@@ -102,6 +113,15 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
   };
 
   /**
+   * Handle category change
+   * @param {Event} e - Select change event
+   */
+  const handleCategoryChange = (e) => {
+    setCategory(e.target.value);
+    setError('');
+  };
+
+  /**
    * Handle form submission
    * @param {Event} e - Form submit event
    */
@@ -124,12 +144,14 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
     try {
       await onSubmit({
         topic: sanitizeInput(topic),
-        keywords: sanitizeInput(keywords)
+        keywords: sanitizeInput(keywords),
+        category: sanitizeInput(category)
       });
       
       // Clear form on successful submission
       setTopic('');
       setKeywords('');
+      setCategory('');
       setError('');
     } catch (err) {
       setError(err.message || 'An error occurred while checking similarity');
@@ -223,6 +245,39 @@ const TopicForm = ({ onSubmit, isLoading = false }) => {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Research Area / Category (Optional) */}
+        <div>
+          <label 
+            htmlFor="category" 
+            className="block text-sm font-medium text-gray-700 mb-2"
+          >
+            Research Area <span className="text-gray-400">(Optional)</span>
+          </label>
+
+          <select
+            id="category"
+            value={category}
+            onChange={handleCategoryChange}
+            disabled={isLoading}
+            className="
+              w-full px-4 py-3 rounded-lg border-2 border-gray-300 bg-white
+              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+              disabled:bg-gray-100 disabled:cursor-not-allowed
+              transition-colors duration-200
+            "
+          >
+            {RESEARCH_CATEGORIES.map((cat) => (
+              <option key={cat} value={cat}>
+                {cat === '' ? 'Not specified' : cat}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Select a category to refine results (optional)
+          </p>
         </div>
 
         {/* Keywords Input (Optional) */}

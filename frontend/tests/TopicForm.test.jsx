@@ -23,6 +23,15 @@ describe('TopicForm Component', () => {
       expect(textarea.tagName).toBe('TEXTAREA');
     });
 
+    it('1a. renders research area select', () => {
+      render(<TopicForm onSubmit={mockOnSubmit} />);
+      const select = screen.getByLabelText(/research area/i);
+      expect(select).toBeInTheDocument();
+      expect(select.tagName).toBe('SELECT');
+      // default option should be not specified
+      expect(screen.getByText(/not specified/i)).toBeInTheDocument();
+    });
+
     it('2. renders submit button', () => {
       render(<TopicForm onSubmit={mockOnSubmit} />);
       
@@ -150,7 +159,8 @@ describe('TopicForm Component', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           topic: validTopic,
-          keywords: ''
+          keywords: '',
+          category: ''
         });
       });
     });
@@ -249,9 +259,11 @@ describe('TopicForm Component', () => {
       
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
       const keywordsInput = screen.getByPlaceholderText(/e.g., machine learning/i);
+      const categorySelect = screen.getByLabelText(/research area/i);
       
       await user.type(textarea, 'Machine learning algorithms for natural language processing tasks');
       await user.type(keywordsInput, 'AI, neural networks, deep learning');
+      await user.selectOptions(categorySelect, 'Epidemiology');
       
       const submitButton = screen.getByRole('button', { name: /check similarity/i });
       await user.click(submitButton);
@@ -259,7 +271,8 @@ describe('TopicForm Component', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           topic: 'Machine learning algorithms for natural language processing tasks',
-          keywords: 'AI, neural networks, deep learning'
+          keywords: 'AI, neural networks, deep learning',
+          category: 'Epidemiology'
         });
       });
     });
@@ -270,9 +283,11 @@ describe('TopicForm Component', () => {
       
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
       const keywordsInput = screen.getByPlaceholderText(/e.g., machine learning/i);
+      const categorySelect = screen.getByLabelText(/research area/i);
       
       await user.type(textarea, 'Machine learning algorithms for natural language processing tasks');
       await user.type(keywordsInput, 'AI, neural networks');
+      await user.selectOptions(categorySelect, 'Infectious Diseases');
       
       const submitButton = screen.getByRole('button', { name: /check similarity/i });
       await user.click(submitButton);
@@ -280,6 +295,7 @@ describe('TopicForm Component', () => {
       await waitFor(() => {
         expect(textarea.value).toBe('');
         expect(keywordsInput.value).toBe('');
+        expect(categorySelect.value).toBe('');
       });
     });
 
@@ -288,9 +304,11 @@ describe('TopicForm Component', () => {
       
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
       const keywordsInput = screen.getByPlaceholderText(/e.g., machine learning/i);
+      const categorySelect = screen.getByLabelText(/research area/i);
       
       expect(textarea).toBeDisabled();
       expect(keywordsInput).toBeDisabled();
+      expect(categorySelect).toBeDisabled();
     });
 
     it('shows validation message for minimum word count', async () => {

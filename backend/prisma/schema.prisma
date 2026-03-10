@@ -7,9 +7,8 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
-  extensions = [vector]
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model HistoricalTopic {
@@ -19,7 +18,7 @@ model HistoricalTopic {
   sessionYear    String    @map("session_year")
   supervisorName String    @map("supervisor_name")
   category       String?
-  embedding      Unsupported("vector(384)")?
+  embedding      Json?
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -36,7 +35,7 @@ model CurrentSessionTopic {
   sessionYear    String    @map("session_year")
   supervisorName String    @map("supervisor_name")
   category       String?
-  embedding      Unsupported("vector(384)")?
+  embedding      Json?
   approvedDate   DateTime? @map("approved_date")
   studentId      String?   @map("student_id")
   createdAt      DateTime  @default(now()) @map("created_at")
@@ -55,7 +54,7 @@ model UnderReviewTopic {
   sessionYear       String    @map("session_year")
   supervisorName    String    @map("supervisor_name")
   category          String?
-  embedding         Unsupported("vector(384)")?
+  embedding         Json?
   reviewStartedAt   DateTime? @map("review_started_at")
   reviewingLecturer String?   @map("reviewing_lecturer")
   createdAt         DateTime  @default(now()) @map("created_at")

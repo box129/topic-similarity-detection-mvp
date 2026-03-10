@@ -55,7 +55,7 @@ frontend/
 │   ├── components/
 │   │   ├── features/
 │   │   │   ├── TopicInput/
-│   │   │   │   ├── TopicForm.jsx         # Topic & keywords form
+│   │   │   │   ├── TopicForm.jsx         # Topic, category & keywords form
 │   │   │   │   └── TopicForm.test.jsx    # Form tests
 │   │   │   │
 │   │   │   └── Results/
@@ -105,6 +105,7 @@ App (root)
 ├── Container
 │   ├── TopicForm
 │   │   ├── Input field (topic)
+│   │   ├── Dropdown (research area/category)
 │   │   ├── Input field (keywords)
 │   │   └── Submit button
 │   │

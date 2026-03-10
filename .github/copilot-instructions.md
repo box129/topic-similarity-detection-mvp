@@ -1,174 +1,100 @@
-# AI Coding Agent Instructions for Topic Similarity MVP
+﻿# AI Coding Agent Instructions for Topic Similarity MVP
 
-This codebase implements a **tri-algorithm topic similarity detection system** for university research submissions. Understand the architecture before making changes.
+A micro‑service system for detecting topic similarity in university research submissions. AI agents should grasp the three services, data flow, and key conventions before coding.
 
-## 🏗️ Architecture Overview
+## 🧩 High‑Level Architecture
 
-**Three-service microservices architecture:**
+- **Backend API** (ackend/): Express.js on port 3000. Orchestrates algorithms, queries PostgreSQL via Prisma, computes risk levels, and serves REST endpoints.
+- **SBERT Service** (sbert-service/): FastAPI/Python on port 8000. Generates 384‑dim embeddings. Calls are timeout‑protected (5 s) and may fail gracefully.
+- **Frontend** (rontend/): React + Vite on port 5173. Single‑page app that submits topics and displays three tiers of similarity results with colour‑coded risk.
 
-1. **Backend API** (`backend/`) - Express.js service on port 3000
-   - Coordinates all similarity algorithms
-   - Manages database interactions via Prisma ORM
-   - Returns risk-level assessments (LOW/MEDIUM/HIGH)
+> See ackend/README.md for an exhaustive reference; this guide distills the operational essentials.
 
-2. **SBERT Service** (`sbert-service/`) - FastAPI microservice on port 8000
-   - Python-based semantic embedding generation using `sentence-transformers` model
-   - Produces 384-dimensional embeddings for topics
-   - **Critical:** API calls have 5-second timeout; service failure triggers graceful fallback
+## 🔄 Backend Data Flow & Core Logic
 
-3. **Frontend** (`frontend/`) - React + Vite on port 5173
-   - Single-page form for topic submission
-   - Displays 3-tier results: historical (top 5), current session (≥60%), under review (≥60%)
-   - Risk-level color coding (Green/Yellow/Red)
+1. Client POSTs /api/similarity/check with 	opic (+ optional keywords).
+2. Controller pulls **three tables** (historical_topics, current_session_topics, under_review_topics) using raw SQL (embeddings cast to text). 48‑hour filter applies to under‑review.
+3. Embeddings parsed from JSON; missing/invalid vectors logged and ignored.
+4. Three algorithms run in parallel:
+   - **Jaccard** – exact token overlap
+   - **TF‑IDF** – term importance
+   - **SBERT** – semantic similarity (may return 
+ull when degraded)
+5. Results combined with weights (40 % SBERT, 30 % each TF‑IDF/Jaccard; fallback 50/50 when SBERT unavailable). Constants live at top of similarity.controller.js.
+6. Three tiers are computed:
+   - Tier 1: top‑5 historical matches
+   - Tier 2: current‑session matches ≥ SIMILARITY_TIER2_THRESHOLD (0.60 by default)
+   - Tier 3: under‑review matches ≥ same threshold
+7. Risk level is HIGH if max score ≥ 0.70 or any tier‑3 match; MEDIUM if ≥ 0.50 or tier‑2 matches; else LOW.
 
-**Data Flow:**
-- User submits topic → Frontend calls `/api/similarity/check`
-- Backend fetches topics from 3 Prisma tables (historical, current_session, under_review)
-- Runs **Jaccard** + **TF-IDF** + **SBERT** algorithms in parallel
-- Combines scores, calculates risk level, returns formatted response
-- If SBERT times out: fall back to 2 algorithms, show warning message
+## 🛠️ Conventions & Patterns
 
-## 🔑 Key Patterns & Conventions
-
-### Algorithm Services (backend/src/services/)
-Each algorithm is isolated in its own service file and follows the same pattern:
-
-```javascript
-// services/jaccard.service.js / tfidf.service.js / sbert.service.js
-function calculateSimilarity(queryText, targetText, targetEmbedding) {
-  // Returns score 0-1
-  return { score, metadata? }
-}
-// Export only calculation functions, not state
-```
-
-**Important:** SBERT service is async and calls external microservice. Always wrap in try-catch and handle timeouts:
-```javascript
-// In sbert.service.js
-const SBERT_TIMEOUT = parseInt(process.env.SBERT_TIMEOUT || '5000', 10);
-// Queries fail after 5 seconds; controller detects and falls back
-```
-
-### Database Schema (prisma/schema.prisma)
-Three separate tables with identical schemas (including `embedding` field for pgvector):
-- `historical_topics` - Historical submissions (large dataset)
-- `current_session_topics` - Active semester submissions
-- `under_review_topics` - Topics in review (filtered to last 48 hours only)
-
-All use `Unsupported("vector(384)")` for pgvector integration. Raw SQL queries in controller parse embeddings as JSON strings.
-
-### Error Handling
-Custom `AppError` class in [middleware/errorHandler.middleware.js](backend/src/middleware/errorHandler.middleware.js):
-```javascript
-throw new AppError(message, statusCode, errorCode);
-// errorHandler middleware catches and formats response
-```
-
-All errors logged via Winston logger with structured format (level, timestamp, message, metadata).
-
-### API Response Format
-Always return consistent structure:
-```json
-{
-  "status": "success|degraded|error",
-  "riskLevel": "LOW|MEDIUM|HIGH",
-  "algorithms": {
-    "jaccard": { "score": 0.85, "topResults": [...] },
-    "tfidf": { "score": 0.82, "topResults": [...] },
-    "sbert": { "score": 0.88, "topResults": [...] }
-  },
-  "warnings": ["SBERT unavailable"] // Only if degraded
-}
-```
+- **Services** live under ackend/src/services. Each exports pure calculation functions. SBERT service handles HTTP calls and may cache embeddings.
+- **Controllers** orchestrate business logic and error handling. Logging uses Winston (ackend/src/config/logger.js).
+- **Errors**: use AppError (middleware in ackend/src/middleware/errorHandler.middleware.js). Throw to trigger uniform JSON responses.
+- **Config**: ackend/src/config/env.js parses .env with validation. Additional vars include SIMILARITY_TIER2_THRESHOLD, SIMILARITY_TIER3_TIME_WINDOW_HOURS, and SBERT_TIMEOUT.
+- **Database**: Prisma schema uses Unsupported( vector 384 ) for pgvector. Querying uses $queryRaw with manual parsing.
+- **Logging**: structured logs with timestamps; helpers available in utils/logger.js.
+- **Utility functions**: NLP preprocessing in src/utils/preprocessing.js (tested thoroughly).
 
 ## 🧪 Testing & Development
 
-### Run Commands
-```bash
-# Backend
-npm install                  # Install dependencies
-npm run dev                 # Start with nodemon (port 3000)
-npm test                    # Run Jest with coverage (70% threshold)
-npm run prisma:generate     # Generate Prisma client
-npm run prisma:push         # Sync schema to database
-npm run prisma:studio       # Web UI for database
+- Backend tests: Jest + Supertest. Located in ackend/tests/**. Coverage target 70 % (branches/functions/lines/statements). Exclude src/server.js and env.js.
+- Mock SBERT and database where appropriate (see ackend/tests/__mocks__).
+- Critical scenarios: algorithm isolation, risk logic, SBERT downtime, empty‑result handling.
+- Pre‑commit/test scripts live in ackend/package.json. Many helper PowerShell/BAT scripts exist for Windows (un-all-tests.ps1, setup-db-interactive.ps1).
 
-# SBERT Service
-python -m venv venv         # Create virtual environment
-.\venv\Scripts\Activate.ps1 # Activate (Windows)
-pip install -r requirements.txt
-python app.py               # Start FastAPI on port 8000
+SBERT service has its own Python venv; activate and run python app.py. Frontend uses 
+pm run dev and Vitest for unit tests.
 
-# Frontend
+## 🔌 Setup & Scripts
+
+`ash
+# backend
 npm install
-npm run dev                 # Vite dev server on port 5173
-npm test                    # Vitest
-```
+cp .env.example .env  # set DATABASE_URL, SBERT_SERVICE_URL, etc.
+npm run prisma:generate
+npm run prisma:push
+npm run dev            # nodemon
+npm test
 
-### Test Structure
-- Backend uses Jest with Supertest for HTTP testing
-- Tests in files matching `**/*.test.js` or `**/__tests__/**`
-- Coverage threshold: 70% (branches, functions, lines, statements)
-- Exclude `src/server.js` and `src/config/env.js` from coverage
-- Tests in [backend/tests/](backend/tests/) parallel source structure
+# sbt-service
+python -m venv venv
+.\\venv\\Scripts\\Activate.ps1
+pip install -r requirements.txt
+python app.py
 
-### Critical Test Cases
-When modifying similarity algorithms:
-1. **Algorithm isolation** - Each algorithm produces consistent scores independently
-2. **Risk level logic** - MAX(scores) ≥70% → HIGH; ≥50% OR Tier2 matches → MEDIUM; else LOW
-3. **SBERT timeout** - Verify graceful fallback when service unavailable
-4. **Empty results** - Return empty arrays, not null; handle edge cases
+# frontend
+npm install
+npm run dev
+`
 
-## 📊 Similarity Scoring Rules
+Extra scripts for Windows appear in ackend/ (batch and PowerShell) and help with firewall, admin privileges, or manual API testing.
 
-**Three-tier results:**
-- **Tier 1:** Top 5 historical topics (always shown, sorted by score DESC)
-- **Tier 2:** Current session topics with similarity ≥60%
-- **Tier 3:** Under-review topics (48-hour window) with similarity ≥60%
+## 📁 Key Files & Entry Points
 
-**Risk level calculation (in [similarity.controller.js](backend/src/controllers/similarity.controller.js)):**
-```javascript
-const maxScore = Math.max(jaccard, tfidf, sbert);
-riskLevel = 
-  maxScore >= 0.70 || tier3Matches.length > 0 ? 'HIGH'
-  : maxScore >= 0.50 || tier2Matches.length > 0 ? 'MEDIUM'
-  : 'LOW'
-```
+| Purpose | Location |
+|---------|----------|
+| Jaccard/TF‑IDF/SBERT logic | ackend/src/services/*.service.js |
+| Response aggregation & risk logic | ackend/src/controllers/similarity.controller.js |
+| App entry | ackend/src/server.js |
+| Env validation | ackend/src/config/env.js |
+| DB schema | ackend/prisma/schema.prisma |
+| Error middleware | ackend/src/middleware/errorHandler.middleware.js |
+| SBERT API | sbert-service/app.py |
+| Frontend form & display | rontend/src/ |
 
-## 🔌 Environment Configuration
+## ⚠️ Common Pitfalls
 
-Config files in [backend/src/config/](backend/src/config/):
-- [env.js](backend/src/config/env.js) - Loads from `.env` via dotenv, validates required variables
-- [logger.js](backend/src/config/logger.js) - Winston logger with file + console transports
-- [database.js](backend/src/config/database.js) - Prisma client setup
-
-**Required `.env` variables:**
-- `NODE_ENV` - development/test/production
-- `PORT` - Backend port (default 3000)
-- `DATABASE_URL` - PostgreSQL connection string with pgvector
-- `SBERT_SERVICE_URL` - SBERT microservice URL (default http://localhost:8000)
-- `CORS_ORIGIN` - Frontend URL for CORS
-
-## 🚨 Common Pitfalls & Solutions
-
-| Issue | Solution |
-|-------|----------|
-| SBERT times out (>5s) | Controller detects timeout, removes SBERT from algorithms, shows warning |
-| Embedding parse fails | Logging warns but continues; algorithm treated as unavailable |
-| Database disconnects | Prisma reconnects; unhandled Prisma errors caught by error handler |
-| Rate limiting blocks tests | Jest runs with rate limiter; configure in test env or mock `express-rate-limit` |
-| pgvector comparisons fail | Ensure embedding columns are valid vectors; null embeddings are skipped |
-
-## 📁 Key Files by Purpose
-
-**Algorithm logic:** [backend/src/services/jaccard.service.js](backend/src/services/jaccard.service.js), tfidf.service.js, sbert.service.js
-**Result aggregation:** [backend/src/controllers/similarity.controller.js](backend/src/controllers/similarity.controller.js) (lines 1-200)
-**Risk calculation:** [backend/src/controllers/similarity.controller.js](backend/src/controllers/similarity.controller.js) (lines 250-300)
-**API responses:** [backend/API-DOCUMENTATION.md](backend/API-DOCUMENTATION.md)
-**Database schema:** [backend/prisma/schema.prisma](backend/prisma/schema.prisma)
-**Error handling:** [backend/src/middleware/errorHandler.middleware.js](backend/src/middleware/errorHandler.middleware.js)
-**Configuration:** [backend/src/config/env.js](backend/src/config/env.js)
+- SBERT timeouts or connection failures – controller degrades gracefully and logs warnings.
+- Embeddings stored as text require JSON.parse; malformed vectors become 
+ull.
+- Rate limiter may interfere with Jest tests; mocks are provided.
+- Use 
+pm run prisma:push (no migrations) for Neon compatibility.
 
 ---
 
-**Last updated:** February 15, 2026
+This document is the primary cheat sheet; refer to the extensive markdown files in the repo for deeper context (ALGORITHM-TESTS-*.md, API-DOCUMENTATION.md, etc.).
+
+**Last updated:** March 8, 2026
