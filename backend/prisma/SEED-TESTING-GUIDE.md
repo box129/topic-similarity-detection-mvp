@@ -118,17 +118,228 @@ With only 100 rows in the database, Tier 2 and Tier 3 matches may be sparse or e
 ### Cold start
 All three services (backend, SBERT, frontend) must be running simultaneously for full accuracy. SBERT degradation is silent — results appear normal but are less accurate.
 
-## Section 4 — Demo Recommendations
+## Section 4 — Browser Testing Guide
 
-### Dataset Recommendations
-- **Use 100-row dataset for live demos** (fastest, most predictable)
-- **Use 500 and 1000 row datasets for scalability documentation only**
+### Step 1: Start All Three Services
 
-### Suggested Demo Flow
-1. Start all services (backend, SBERT, frontend)
-2. Seed with 100 rows
-3. Show exact match (HIGH risk)
-4. Show near match (MEDIUM risk)
-5. Show unrelated topic (LOW risk)
-6. Demonstrate cross-category overlap
-7. Mention scalability with larger datasets (without running them live)
+Open three separate PowerShell terminals and start each service in this order:
+
+**Terminal 1 - Backend (Port 8080)**
+```powershell
+cd backend
+npm run dev
+```
+Wait for: `Express server running at http://localhost:8080`
+
+**Terminal 2 - SBERT Service (Port 8000)**
+```powershell
+cd sbert-service
+.\venv\Scripts\Activate.ps1
+python app.py
+```
+Wait for: `Uvicorn running on http://0.0.0.0:8000`
+
+**Terminal 3 - Frontend (Port 5173)**
+```powershell
+cd frontend
+npm run dev
+```
+Wait for: `Local: http://localhost:5173`
+
+### Step 2: Verify Services Are Running
+
+In a new terminal, test the health of each:
+
+```powershell
+# Test backend
+Invoke-WebRequest -Uri http://localhost:8080/health -Method GET
+
+# Test SBERT
+Invoke-WebRequest -Uri http://localhost:8000/docs -Method GET
+
+# Both should return 200 OK
+```
+
+### Step 3: Access the Frontend in Browser
+
+Open your browser and go to:
+```
+http://localhost:5173
+```
+
+You should see a form with:
+- **Topic** input field (required)
+- **Keywords** input field (optional)
+- **Category** dropdown (optional)
+- **Submit** button
+- **Results panel** (appears after submission)
+
+### Step 4: Seed the Database
+
+First, seed some data for meaningful results:
+
+```powershell
+cd backend/prisma
+node seed.js seed_100.csv
+```
+
+Wait for: `Seeding complete. Inserted: 80, Skipped: 0`
+
+### Step 5: Test with Your Input
+
+Try your earlier example in the form:
+
+**Topic field:**
+```
+Malaria control in swampy damp rural and urban environmen with everyday rainfall
+```
+
+**Keywords field (optional):**
+```
+malaria, environment, rainfall, breeding sites
+```
+
+**Category field (optional):**
+```
+Environmental Health
+```
+
+Click **Submit**.
+
+### Step 6: Understand the Results Display
+
+The response will show:
+
+```
+RISK LEVEL: ⚠️ MEDIUM-HIGH  (or MEDIUM/LOW based on scores)
+
+Maximum Similarity Score: 0.68
+
+--- TIER 1: Historical Topics (Top 5) ---
+1. Vector Breeding Site Assessment and Malaria Risk...
+   Score: 0.68 | Category: Environmental Health
+
+2. Factors Influencing Insecticide-Treated Net Use...
+   Score: 0.64 | Category: Infectious Diseases
+
+... (3-5 results)
+
+--- TIER 2: Current Session Topics (≥ 0.60) ---
+(Empty if no current session data)
+
+--- TIER 3: Under Review (≥ 0.60, last 48 hours) ---
+(Empty if no under-review data)
+```
+
+### Step 7: Try Different Test Cases
+
+### **Test Case 1: Exact Match (Should be HIGH risk)**
+```
+Topic: Epidemiology of Road Traffic Injuries and Fatalities in Urban Communities of Southwest Nigeria
+Keywords: road traffic injuries, fatalities, urban, epidemiology, Southwest
+Category: Epidemiology
+```
+
+**Expected:** HIGH risk (will match exactly from seeded data)
+
+---
+
+### **Test Case 2: Unrelated Topic (Should be LOW risk)**
+```
+Topic: Machine Learning Algorithms for Stock Market Prediction
+Keywords: machine learning, algorithms, stock market, prediction
+Category: (leave empty)
+```
+
+**Expected:** LOW risk (no matching in public health domain)
+
+---
+
+### **Test Case 3: Near Match (Should be MEDIUM risk)**
+```
+Topic: Assessment of Malaria Prevention Strategies in Rural Communities
+Keywords: malaria, prevention, rural, strategies, communities
+Category: Infectious Diseases
+```
+
+**Expected:** MEDIUM risk (similar concepts but different wording)
+
+---
+
+### **Test Case 4: Cross-Category Match**
+```
+Topic: Impact of Environmental Factors on Malaria Transmission
+Keywords: environmental factors, malaria, transmission
+Category: Environmental Health
+```
+
+**Expected:** MEDIUM-HIGH risk (matches across categories)
+
+### Step 8: Monitor Backend Console
+
+Watch the backend terminal for logs like:
+
+```
+[INFO] POST /api/similarity/check
+[INFO] Topic: "Malaria control..."
+[INFO] Running Jaccard search: 234ms
+[INFO] Running TF-IDF search: 456ms
+[INFO] Running SBERT search: 5234ms
+[INFO] Combined score: 0.68
+[INFO] Risk level: MEDIUM
+[INFO] Response time: 5924ms
+```
+
+### Step 9: Check for Issues
+
+### **If results appear very fast (< 500ms):**
+- SBERT likely timed out or failed
+- Backend fell back to TF-IDF + Jaccard only
+- Results are less accurate but still functional
+- Check SBERT terminal for errors
+
+### **If SBERT is slow (10+ seconds):**
+- Normal on first request (model loads into memory)
+- Subsequent requests will be faster
+- This is expected on CPU-only hardware
+
+### **If you get "Connection refused":**
+- Make sure all 3 services are running
+- Check firewall rules (especially on Windows)
+- Verify ports: 8080, 8000, 5173 are not blocked
+
+### **If frontend shows blank page:**
+- Check browser console (F12) for JavaScript errors
+- Hard refresh: Ctrl+Shift+R
+- Rebuild frontend: `cd frontend && npm run build`
+
+### **If you get "RESEARCH_CATEGORIES is not defined":**
+- Frontend code was missing constants
+- Should be fixed in current version
+
+### Step 10: Debug Mode
+
+For detailed debugging, check these endpoints:
+
+```powershell
+# Backend health
+Invoke-WebRequest -Uri http://localhost:8080/health -Method GET
+
+# SBERT health
+Invoke-WebRequest -Uri http://localhost:8000/docs -Method GET
+
+# Test API directly
+Invoke-WebRequest -Uri http://localhost:8080/api/similarity/check -Method POST -Body '{"topic": "test topic"}' -ContentType 'application/json'
+```
+
+### Quick Reference: What Each Icon Means
+
+| Icon | Risk Level | Score Range | Meaning |
+|------|-----------|---|---------|
+| 🟢 | LOW | < 0.50 | No concerning similarity |
+| 🟡 | MEDIUM | 0.50-0.70 | Some overlap, review recommended |
+| 🔴 | HIGH | ≥ 0.70 | High similarity, flag for originality check |
+
+---
+
+**Start the services now, then let me know if you hit any issues!** 🚀

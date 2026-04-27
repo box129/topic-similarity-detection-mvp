@@ -36,13 +36,27 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.get('/api/v1/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'Server is running',
+    environment: config.env,
+    apiVersion: config.apiVersion
+  });
+});
+
 // API Routes
-app.post('/api/similarity/check', (req, res, next) => {
+const similarityRouteHandler = (req, res, next) => {
   if (!similarityController) {
     similarityController = require('./controllers/similarity.controller');
   }
   similarityController.checkSimilarity(req, res, next);
-});
+};
+
+app.post('/api/similarity/check', similarityRouteHandler);
+
+// Architecture alias — matches API spec
+app.post('/api/v1/check-similarity', similarityRouteHandler);
 
 // 404 handler (must be before error handler)
 app.use(notFoundHandler);
