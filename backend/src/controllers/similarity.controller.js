@@ -7,8 +7,8 @@ const logger = require('../config/logger');
 // ============ Configuration Constants ============
 // Risk thresholds for similarity scoring
 const RISK_THRESHOLDS = {
-  HIGH_TIER1: 0.80,      // Any tier1 match >= 80% = HIGH
-  MEDIUM_TIER1: 0.60,    // Any tier1 match >= 60% = MEDIUM
+  HIGH_TIER1: 0.70,      // Any tier1 match >= 70% = HIGH
+  MEDIUM_TIER1: 0.50,    // Any tier1 match >= 50% = MEDIUM
 };
 
 // Algorithm weights for combined scoring
@@ -255,6 +255,12 @@ async function checkSimilarity(req, res, next) {
       sbertResults
     );
 
+    // 5a. Calculate overall maximum similarity from combined results
+    const overallMaxSimilarity = combinedResults.reduce(
+      (maxScore, result) => Math.max(maxScore, result.combinedScore),
+      0
+    );
+
     // 6. Filter into 3 tiers
     const tier1Historical = filterTier1Historical(combinedResults, parsedHistorical);
     const tier2CurrentSession = filterTier2CurrentSession(combinedResults, parsedCurrentSession);
@@ -278,6 +284,7 @@ async function checkSimilarity(req, res, next) {
         tier3_under_review: tier3UnderReview
       },
       overallRisk: overallRisk,
+      overallMaxSimilarity: overallMaxSimilarity,
       algorithmStatus: {
         jaccard: algorithmResults[0].status === 'fulfilled',
         tfidf: algorithmResults[1].status === 'fulfilled',
@@ -293,22 +300,17 @@ async function checkSimilarity(req, res, next) {
 }
 
 /**
- * Combine results from multiple algorithms with weighted average
+ * Combine results from multiple algorithms by summing normalized scores
  * 
- * Weights chosen based on algorithm characteristics:
- * - Jaccard (30%): Fast, good for exact matches, limited semantic understanding
- * - TF-IDF (30%): Fast, captures term importance, limited context
- * - SBERT (40%): Slow but highest semantic accuracy, given higher weight
- * 
- * Fallback weights (when SBERT unavailable):
- * - Jaccard (50%): Standard weight + SBERT allocation
- * - TF-IDF (50%): Standard weight + SBERT allocation
+ * When SBERT is available, the combined score is the sum of Jaccard,
+ * TF-IDF, and SBERT scores. When SBERT is unavailable, it falls back to
+ * the sum of Jaccard and TF-IDF scores.
  * 
  * @param {Array} allTopics - All topics from database
  * @param {Array} jaccardResults - Jaccard similarity results
  * @param {Array} tfidfResults - TF-IDF similarity results
  * @param {Array|null} sbertResults - SBERT similarity results (null if unavailable)
- * @returns {Array} Combined results with weighted scores
+ * @returns {Array} Combined results with summed scores
  */
 function combineAlgorithmResults(allTopics, jaccardResults, tfidfResults, sbertResults) {
   // Create a map of topic ID to combined scores
@@ -360,20 +362,11 @@ function combineAlgorithmResults(allTopics, jaccardResults, tfidfResults, sbertR
   const hasSbert = sbertResults !== null;
   const results = Array.from(scoresMap.values()).map(entry => {
     let combinedScore;
-    
+
     if (hasSbert) {
-      // All three algorithms available - use defined weights
-      combinedScore = (
-        entry.jaccard * ALGORITHM_WEIGHTS.jaccard +
-        entry.tfidf * ALGORITHM_WEIGHTS.tfidf +
-        entry.sbert * ALGORITHM_WEIGHTS.sbert
-      );
+      combinedScore = entry.jaccard + entry.tfidf + entry.sbert;
     } else {
-      // Only Jaccard and TF-IDF available - fallback weights
-      combinedScore = (
-        entry.jaccard * ALGORITHM_WEIGHTS.jaccard_fallback +
-        entry.tfidf * ALGORITHM_WEIGHTS.tfidf_fallback
-      );
+      combinedScore = entry.jaccard + entry.tfidf;
     }
 
     entry.combinedScore = Math.round(combinedScore * 1000) / 1000;
@@ -432,7 +425,8 @@ function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
   const tier2 = combinedResults
     .filter(result => 
       currentSessionIds.has(result.topic.id) && 
-      result.combinedScore >= TIER_FILTER_THRESHOLD
+      result.combinedScore >= TIER_FILTER_THRESHOLD &&
+      result.sbert >= TIER_FILTER_THRESHOLD
     )
     .map(result => ({
       id: result.topic.id,
@@ -468,7 +462,8 @@ function filterTier3UnderReview(combinedResults, underReviewTopics) {
   const tier3 = combinedResults
     .filter(result => 
       underReviewIds.has(result.topic.id) && 
-      result.combinedScore >= TIER_FILTER_THRESHOLD
+      result.combinedScore >= TIER_FILTER_THRESHOLD &&
+      result.sbert >= TIER_FILTER_THRESHOLD
     )
     .map(result => ({
       id: result.topic.id,
@@ -496,8 +491,8 @@ function filterTier3UnderReview(combinedResults, underReviewTopics) {
  * Calculate overall risk level based on tier results
  * 
  * Risk levels determined by:
- * - HIGH: Any tier 2/3 match OR tier 1 match >= HIGH_TIER1 threshold (0.80)
- * - MEDIUM: Tier 1 match >= MEDIUM_TIER1 threshold (0.60)
+ * - HIGH: Any tier 2/3 match OR tier 1 match >= HIGH_TIER1 threshold (0.70)
+ * - MEDIUM: Tier 1 match >= MEDIUM_TIER1 threshold (0.50)
  * - LOW: Everything else
  * 
  * @param {Array} tier1 - Tier 1 results
