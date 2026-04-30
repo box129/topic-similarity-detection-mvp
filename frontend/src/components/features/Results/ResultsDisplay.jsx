@@ -93,9 +93,9 @@ const ResultsDisplay = ({ results }) => {
    * Get similarity level descriptor (user-friendly)
    */
   const getSimilarityLevel = (score) => {
-    if (score >= 0.75) return { label: 'Very High Match', color: 'text-red-600 font-semibold' };
-    if (score >= 0.60) return { label: 'High Match', color: 'text-orange-600 font-semibold' };
-    if (score >= 0.45) return { label: 'Moderate Match', color: 'text-yellow-600' };
+    if (score >= 75) return { label: 'Very High Match', color: 'text-red-600 font-semibold' };
+    if (score >= 60) return { label: 'High Match', color: 'text-orange-600 font-semibold' };
+    if (score >= 45) return { label: 'Moderate Match', color: 'text-yellow-600' };
     return { label: 'Low Match', color: 'text-green-600' };
   };
 

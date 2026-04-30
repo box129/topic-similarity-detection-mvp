@@ -27,6 +27,26 @@ const TIER_FILTER_THRESHOLD = 0.60;
 // Database query timeout in milliseconds
 const DB_QUERY_TIMEOUT = 10000;
 
+function toPercentageScore(score) {
+  if (score === null || score === undefined) {
+    return score;
+  }
+  const percentage = Math.round(score * 1000) / 10;
+  return Math.max(0, Math.min(100, percentage));
+}
+
+function formatTierScoresForResponse(matches) {
+  return matches.map(match => ({
+    ...match,
+    scores: {
+      jaccard: toPercentageScore(match.scores.jaccard),
+      tfidf: toPercentageScore(match.scores.tfidf),
+      sbert: toPercentageScore(match.scores.sbert),
+      combined: toPercentageScore(match.scores.combined)
+    }
+  }));
+}
+
 // ============ Prisma Client Singleton ============
 let prisma = null;
 let prismaConnecting = false;
@@ -279,12 +299,12 @@ async function checkSimilarity(req, res, next) {
       topic: topic,
       keywords: keywords || null,
       results: {
-        tier1_historical: tier1Historical,
-        tier2_current_session: tier2CurrentSession,
-        tier3_under_review: tier3UnderReview
+        tier1_historical: formatTierScoresForResponse(tier1Historical),
+        tier2_current_session: formatTierScoresForResponse(tier2CurrentSession),
+        tier3_under_review: formatTierScoresForResponse(tier3UnderReview)
       },
       overallRisk: overallRisk,
-      overallMaxSimilarity: overallMaxSimilarity,
+      overallMaxSimilarity: toPercentageScore(overallMaxSimilarity),
       algorithmStatus: {
         jaccard: algorithmResults[0].status === 'fulfilled',
         tfidf: algorithmResults[1].status === 'fulfilled',

@@ -166,6 +166,76 @@ describe('Similarity Controller', () => {
       expect(response.body).toHaveProperty('processingTime');
     });
 
+    it('should expose intended API contract with percentage-style match scores', async () => {
+      // Reconciliation spec based on docs/source-of-truth.md and docs/business-rules.md.
+      // This verifies the intended public contract/score scale only, not tier or risk logic.
+      const mockHistoricalTopics = [
+        {
+          id: 1,
+          title: 'Deep Learning for Medical Image Analysis',
+          keywords: 'CNN, radiology, diagnosis',
+          session_year: '2023',
+          supervisor_name: 'Dr. Smith',
+          category: 'Public Health',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        {
+          topicId: 1,
+          title: 'Deep Learning for Medical Image Analysis',
+          score: 0.75,
+          matchedKeywords: ['deep', 'learn']
+        }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        {
+          topicId: 1,
+          title: 'Deep Learning for Medical Image Analysis',
+          score: 0.65,
+          matchedTerms: ['medical', 'image']
+        }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        {
+          topicId: 1,
+          title: 'Deep Learning for Medical Image Analysis',
+          score: 0.85,
+          usedPrecomputed: false
+        }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({
+          topic: 'Deep Learning for Medical Image Diagnosis',
+          keywords: 'radiology, CNN'
+        });
+
+      expect(response.status).toBe(200);
+
+      const topLevelRisk = response.body.riskLevel || response.body.overallRisk;
+      expect(topLevelRisk).toBeDefined();
+
+      expect(response.body.results).toBeDefined();
+      expect(response.body.results.tier1_historical).toBeDefined();
+      expect(response.body.results.tier2_current_session).toBeDefined();
+      expect(response.body.results.tier3_under_review).toBeDefined();
+
+      const firstMatch = response.body.results.tier1_historical[0];
+      expect(firstMatch.scores.jaccard).toBe(75);
+      expect(firstMatch.scores.tfidf).toBe(65);
+      expect(firstMatch.scores.sbert).toBe(85);
+    });
+
     it('should handle SBERT service failure gracefully', async () => {
       // Mock database responses
       const mockHistoricalTopics = [
