@@ -434,7 +434,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
   });
 
   describe('Response Data Validation', () => {
-    test('should return valid similarity scores (0-1 range)', async () => {
+    test('should return valid similarity scores (0-100 range)', async () => {
       const response = await request(app)
         .post('/api/similarity/check')
         .send({
@@ -447,21 +447,21 @@ describe('POST /api/similarity/check - Integration Tests', () => {
       tier1.forEach(result => {
         expect(result).toHaveProperty('scores');
         expect(result.scores.combined).toBeGreaterThanOrEqual(0);
-        expect(result.scores.combined).toBeLessThanOrEqual(1);
+        expect(result.scores.combined).toBeLessThanOrEqual(100);
         
         if (result.scores.jaccard !== undefined) {
           expect(result.scores.jaccard).toBeGreaterThanOrEqual(0);
-          expect(result.scores.jaccard).toBeLessThanOrEqual(1);
+          expect(result.scores.jaccard).toBeLessThanOrEqual(100);
         }
         
         if (result.scores.tfidf !== undefined) {
           expect(result.scores.tfidf).toBeGreaterThanOrEqual(0);
-          expect(result.scores.tfidf).toBeLessThanOrEqual(1);
+          expect(result.scores.tfidf).toBeLessThanOrEqual(100);
         }
         
         if (result.scores.sbert !== undefined) {
           expect(result.scores.sbert).toBeGreaterThanOrEqual(0);
-          expect(result.scores.sbert).toBeLessThanOrEqual(1);
+          expect(result.scores.sbert).toBeLessThanOrEqual(100);
         }
       });
     });

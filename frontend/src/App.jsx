@@ -49,10 +49,10 @@ function App() {
           supervisor_name: m.supervisorName || '',
           session_year: m.sessionYear || '',
           category: m.category || '',
-          jaccard_score: (m.scores?.jaccard || 0) * 100,
-          tfidf_score: (m.scores?.tfidf || 0) * 100,
-          sbert_score: (m.scores?.sbert || 0) * 100,
-          combined_similarity_score: (m.scores?.combined || 0) * 100
+          jaccard_score: m.scores?.jaccard || 0,
+          tfidf_score: m.scores?.tfidf || 0,
+          sbert_score: m.scores?.sbert || 0,
+          combined_similarity_score: m.scores?.combined || 0
         }));
 
         const backendResults = response.data.results || {};
@@ -62,7 +62,7 @@ function App() {
 
         const mappedResults = {
           risk_level: response.data.overallRisk || 'LOW',
-          max_similarity: maxScore * 100,
+          max_similarity: response.data.overallMaxSimilarity ?? maxScore,
           sbert_available: response.data.algorithmStatus?.sbert || false,
           tier1_matches: mapMatches(backendResults.tier1_historical),
           tier2_matches: mapMatches(backendResults.tier2_current_session),
