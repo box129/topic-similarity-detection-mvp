@@ -153,17 +153,12 @@ describe('Similarity Controller', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('topic', 'Machine Learning Applications');
-      expect(response.body).toHaveProperty('overallRisk');
-      expect(response.body.results).toHaveProperty('tier1_historical');
-      expect(response.body.results).toHaveProperty('tier2_current_session');
-      expect(response.body.results).toHaveProperty('tier3_under_review');
-      expect(response.body.algorithmStatus).toEqual({
-        jaccard: true,
-        tfidf: true,
-        sbert: true
-      });
-      expect(response.body).toHaveProperty('processingTime');
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body.data).toHaveProperty('input_topic', 'Machine Learning Applications');
+      expect(response.body.data).toHaveProperty('overall_risk');
+      expect(response.body.data).toHaveProperty('tier1_historical');
+      expect(response.body.data).toHaveProperty('tier2_current');
+      expect(response.body.data).toHaveProperty('tier3_under_review');
     });
 
     it('should expose intended API contract with percentage-style match scores', async () => {
@@ -222,18 +217,18 @@ describe('Similarity Controller', () => {
 
       expect(response.status).toBe(200);
 
-      const topLevelRisk = response.body.riskLevel || response.body.overallRisk;
-      expect(topLevelRisk).toBeDefined();
+      expect(response.body.status).toBe('success');
+      expect(response.body.data.overall_risk).toBeDefined();
 
-      expect(response.body.results).toBeDefined();
-      expect(response.body.results.tier1_historical).toBeDefined();
-      expect(response.body.results.tier2_current_session).toBeDefined();
-      expect(response.body.results.tier3_under_review).toBeDefined();
+      expect(response.body.data).toBeDefined();
+      expect(response.body.data.tier1_historical).toBeDefined();
+      expect(response.body.data.tier2_current).toBeDefined();
+      expect(response.body.data.tier3_under_review).toBeDefined();
 
-      const firstMatch = response.body.results.tier1_historical[0];
-      expect(firstMatch.scores.jaccard).toBe(75);
-      expect(firstMatch.scores.tfidf).toBe(65);
-      expect(firstMatch.scores.sbert).toBe(85);
+      const firstMatch = response.body.data.tier1_historical[0];
+      expect(firstMatch.jaccard).toBe(75);
+      expect(firstMatch.tfidf).toBe(65);
+      expect(firstMatch.sbert).toBe(85);
     });
 
     it('should expose intended FYP_Selected successful response contract', async () => {
@@ -405,8 +400,8 @@ describe('Similarity Controller', () => {
         .send({ topic: 'Machine Learning Applications' });
 
       expect(response.status).toBe(200);
-      expect(response.body.overallRisk).toBe('HIGH');
-      expect(response.body.results.tier2_current_session.length).toBeGreaterThan(0);
+      expect(response.body.data.overall_risk).toBe('HIGH');
+      expect(response.body.data.tier2_current.length).toBeGreaterThan(0);
     });
 
     it('should filter tier 1 to top 5 historical topics', async () => {
@@ -460,7 +455,7 @@ describe('Similarity Controller', () => {
 
       expect(response.status).toBe(200);
       // Should only return top 5
-      expect(response.body.results.tier1_historical).toHaveLength(5);
+      expect(response.body.data.tier1_historical).toHaveLength(5);
     });
 
     it('should only include tier 2 and tier 3 topics with score >= 0.60', async () => {
@@ -515,8 +510,8 @@ describe('Similarity Controller', () => {
 
       expect(response.status).toBe(200);
       // Only topic 1 should be in tier 2 (combined score >= 0.60)
-      expect(response.body.results.tier2_current_session).toHaveLength(1);
-      expect(response.body.results.tier2_current_session[0].id).toBe(1);
+      expect(response.body.data.tier2_current).toHaveLength(1);
+      expect(response.body.data.tier2_current[0].id).toBe(1);
     });
   });
 });

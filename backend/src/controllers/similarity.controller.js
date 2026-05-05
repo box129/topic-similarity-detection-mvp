@@ -47,6 +47,99 @@ function formatTierScoresForResponse(matches) {
   }));
 }
 
+function countWords(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function formatTimestamp(value) {
+  if (!value) {
+    return null;
+  }
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function calculateMinutesAgo(value) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+}
+
+function buildRecommendation(overallRisk) {
+  if (overallRisk === 'HIGH') {
+    return 'High similarity detected. Review the flagged topics and request topic modification if needed.';
+  }
+
+  if (overallRisk === 'MEDIUM') {
+    return 'Moderate similarity detected. Review flagged topics before deciding.';
+  }
+
+  return 'Topic appears unique. Proceed with approval.';
+}
+
+function formatTier1ForFypContract(matches) {
+  return matches.map(match => ({
+    id: match.id,
+    title: match.title,
+    year: match.sessionYear,
+    supervisor: match.supervisorName,
+    category: match.category || null,
+    jaccard: toPercentageScore(match.scores.jaccard),
+    tfidf: toPercentageScore(match.scores.tfidf),
+    sbert: toPercentageScore(match.scores.sbert),
+    matched_keywords: match.matchedKeywords || []
+  }));
+}
+
+function formatTier2ForFypContract(matches) {
+  return matches.map(match => ({
+    id: match.id,
+    title: match.title,
+    approved_date: formatTimestamp(match.approvedDate),
+    supervisor: match.supervisorName,
+    student_id: match.studentId || null,
+    jaccard: toPercentageScore(match.scores.jaccard),
+    tfidf: toPercentageScore(match.scores.tfidf),
+    sbert: toPercentageScore(match.scores.sbert)
+  }));
+}
+
+function formatTier3ForFypContract(matches) {
+  return matches.map(match => ({
+    id: match.id,
+    title: match.title,
+    reviewing_lecturer: match.reviewingLecturer || null,
+    review_started_at: formatTimestamp(match.reviewStartedAt),
+    minutes_ago: calculateMinutesAgo(match.reviewStartedAt),
+    jaccard: toPercentageScore(match.scores.jaccard),
+    tfidf: toPercentageScore(match.scores.tfidf),
+    sbert: toPercentageScore(match.scores.sbert)
+  }));
+}
+
+function buildFypSuccessResponse({ topic, overallRisk, overallMaxSimilarity, tier1, tier2, tier3 }) {
+  return {
+    status: 'success',
+    data: {
+      input_topic: topic,
+      word_count: countWords(topic),
+      char_count: topic.length,
+      overall_risk: overallRisk,
+      max_similarity: toPercentageScore(overallMaxSimilarity),
+      tier1_historical: formatTier1ForFypContract(tier1),
+      tier2_current: formatTier2ForFypContract(tier2),
+      tier3_under_review: formatTier3ForFypContract(tier3),
+      recommendation: buildRecommendation(overallRisk)
+    }
+  };
+}
+
 // ============ Prisma Client Singleton ============
 let prisma = null;
 let prismaConnecting = false;
@@ -153,6 +246,8 @@ async function checkSimilarity(req, res, next) {
             session_year,
             supervisor_name,
             category,
+            approved_date,
+            student_id,
             embedding::text as embedding
           FROM current_session_topics
           ORDER BY created_at DESC
@@ -172,7 +267,8 @@ async function checkSimilarity(req, res, next) {
             supervisor_name,
             category,
             embedding::text as embedding,
-            review_started_at
+            review_started_at,
+            reviewing_lecturer
           FROM under_review_topics
           WHERE review_started_at > NOW() - INTERVAL '48 hours'
           ORDER BY review_started_at DESC
@@ -294,6 +390,17 @@ async function checkSimilarity(req, res, next) {
     // 8. Return JSON response
     const processingTime = Date.now() - startTime;
     logger.info(`Similarity check completed in ${processingTime}ms with risk level: ${overallRisk}`);
+
+    if (sbertResults !== null) {
+      return res.json(buildFypSuccessResponse({
+        topic,
+        overallRisk,
+        overallMaxSimilarity,
+        tier1: tier1Historical,
+        tier2: tier2CurrentSession,
+        tier3: tier3UnderReview
+      }));
+    }
 
     res.json({
       topic: topic,
@@ -455,6 +562,7 @@ function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
       sessionYear: result.topic.session_year,
       supervisorName: result.topic.supervisor_name,
       category: result.topic.category,
+      approvedDate: result.topic.approved_date,
       studentId: result.topic.student_id,
       scores: {
         jaccard: result.jaccard,

@@ -23,104 +23,155 @@ describe('End-to-End User Flow Tests', () => {
   // ==================== MOCK DATA ====================
 
   const mockHighRiskResponse = {
-    overallRisk: 'HIGH',
-    overallMaxSimilarity: 85,
-    algorithmStatus: { sbert: true },
-    results: {
+    status: 'success',
+    data: {
+      input_topic: 'Knowledge of malaria prevention among children under five',
+      word_count: 8,
+      char_count: 60,
+      overall_risk: 'HIGH',
+      max_similarity: 85,
       tier1_historical: [
       {
         id: 1,
         title: 'Knowledge and practices of malaria prevention among mothers of children under five',
-        supervisorName: 'Dr. Jane Smith',
-        sessionYear: '2023/2024',
-        scores: { jaccard: 85, tfidf: 82, sbert: 80, combined: 85 }
+        year: '2023/2024',
+        supervisor: 'Dr. Jane Smith',
+        category: 'Infectious Diseases',
+        jaccard: 85,
+        tfidf: 82,
+        sbert: 80,
+        matched_keywords: ['malaria']
       },
       {
         id: 2,
         title: 'Malaria prevention knowledge among caregivers of under-five children',
-        supervisorName: 'Dr. John Doe',
-        sessionYear: '2022/2023',
-        scores: { jaccard: 78, tfidf: 75, sbert: 73, combined: 78 }
+        year: '2022/2023',
+        supervisor: 'Dr. John Doe',
+        category: 'Infectious Diseases',
+        jaccard: 78,
+        tfidf: 75,
+        sbert: 73,
+        matched_keywords: ['malaria']
       },
       {
         id: 3,
         title: 'Awareness of malaria prevention in children under five years',
-        supervisorName: 'Prof. Sarah Williams',
-        sessionYear: '2023/2024',
-        scores: { jaccard: 72, tfidf: 70, sbert: 68, combined: 72 }
+        year: '2023/2024',
+        supervisor: 'Prof. Sarah Williams',
+        category: 'Health Promotion',
+        jaccard: 72,
+        tfidf: 70,
+        sbert: 68,
+        matched_keywords: ['malaria']
       },
       {
         id: 4,
         title: 'Maternal knowledge on malaria prevention among under-five children',
-        supervisorName: 'Dr. Michael Brown',
-        sessionYear: '2021/2022',
-        scores: { jaccard: 70, tfidf: 68, sbert: 65, combined: 70 }
+        year: '2021/2022',
+        supervisor: 'Dr. Michael Brown',
+        category: 'Maternal & Child Health',
+        jaccard: 70,
+        tfidf: 68,
+        sbert: 65,
+        matched_keywords: ['malaria']
       },
       {
         id: 5,
         title: 'Prevention strategies for malaria in children below five years',
-        supervisorName: 'Dr. Emily Davis',
-        sessionYear: '2023/2024',
-        scores: { jaccard: 68, tfidf: 65, sbert: 62, combined: 68 }
+        year: '2023/2024',
+        supervisor: 'Dr. Emily Davis',
+        category: 'Infectious Diseases',
+        jaccard: 68,
+        tfidf: 65,
+        sbert: 62,
+        matched_keywords: ['malaria']
       }
     ],
-      tier2_current_session: [
+      tier2_current: [
       {
         id: 6,
         title: 'Malaria control measures in pediatric populations',
-        supervisorName: 'Dr. Robert Wilson',
-        sessionYear: '2022/2023',
-        scores: { jaccard: 55, tfidf: 52, sbert: 50, combined: 55 }
+        approved_date: '2022/2023',
+        supervisor: 'Dr. Robert Wilson',
+        student_id: 'STU-2024-103',
+        jaccard: 55,
+        tfidf: 52,
+        sbert: 50
       }
     ],
-      tier3_under_review: []
+      tier3_under_review: [],
+      recommendation: 'High similarity detected. Review the flagged topics.'
     }
   };
 
   const mockLowRiskResponse = {
-    overallRisk: 'LOW',
-    overallMaxSimilarity: 42,
-    algorithmStatus: { sbert: true },
-    results: {
+    status: 'success',
+    data: {
+      input_topic: 'Blockchain applications in telemedicine systems for remote patient healthcare',
+      word_count: 9,
+      char_count: 73,
+      overall_risk: 'LOW',
+      max_similarity: 42,
       tier1_historical: [
       {
         id: 10,
         title: 'Blockchain integration in healthcare information systems',
-        supervisorName: 'Dr. Alex Martinez',
-        sessionYear: '2023/2024',
-        scores: { jaccard: 42, tfidf: 38, sbert: 35, combined: 42 }
+        year: '2023/2024',
+        supervisor: 'Dr. Alex Martinez',
+        category: 'Health Policy',
+        jaccard: 42,
+        tfidf: 38,
+        sbert: 35,
+        matched_keywords: ['healthcare']
       },
       {
         id: 11,
         title: 'Telemedicine platforms using distributed ledger technology',
-        supervisorName: 'Prof. Linda Garcia',
-        sessionYear: '2022/2023',
-        scores: { jaccard: 38, tfidf: 35, sbert: 32, combined: 38 }
+        year: '2022/2023',
+        supervisor: 'Prof. Linda Garcia',
+        category: 'Health Policy',
+        jaccard: 38,
+        tfidf: 35,
+        sbert: 32,
+        matched_keywords: ['telemedicine']
       },
       {
         id: 12,
         title: 'Digital health records management with blockchain',
-        supervisorName: 'Dr. David Thompson',
-        sessionYear: '2023/2024',
-        scores: { jaccard: 35, tfidf: 32, sbert: 30, combined: 35 }
+        year: '2023/2024',
+        supervisor: 'Dr. David Thompson',
+        category: 'Health Policy',
+        jaccard: 35,
+        tfidf: 32,
+        sbert: 30,
+        matched_keywords: ['health']
       },
       {
         id: 13,
         title: 'Secure medical data exchange using cryptocurrency protocols',
-        supervisorName: 'Dr. Jennifer Moore',
-        sessionYear: '2022/2023',
-        scores: { jaccard: 30, tfidf: 28, sbert: 25, combined: 30 }
+        year: '2022/2023',
+        supervisor: 'Dr. Jennifer Moore',
+        category: 'Health Policy',
+        jaccard: 30,
+        tfidf: 28,
+        sbert: 25,
+        matched_keywords: ['medical']
       },
       {
         id: 14,
         title: 'Remote patient monitoring via decentralized networks',
-        supervisorName: 'Prof. Christopher Lee',
-        sessionYear: '2021/2022',
-        scores: { jaccard: 28, tfidf: 25, sbert: 22, combined: 28 }
+        year: '2021/2022',
+        supervisor: 'Prof. Christopher Lee',
+        category: 'Health Policy',
+        jaccard: 28,
+        tfidf: 25,
+        sbert: 22,
+        matched_keywords: ['patient']
       }
     ],
-      tier2_current_session: [],
-      tier3_under_review: []
+      tier2_current: [],
+      tier3_under_review: [],
+      recommendation: 'Topic appears unique. Proceed with approval.'
     }
   };
 
