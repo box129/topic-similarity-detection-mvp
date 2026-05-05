@@ -23,134 +23,105 @@ describe('End-to-End User Flow Tests', () => {
   // ==================== MOCK DATA ====================
 
   const mockHighRiskResponse = {
-    risk_level: 'HIGH',
-    max_similarity: 85,
-    sbert_available: true,
-    tier1_matches: [
+    overallRisk: 'HIGH',
+    overallMaxSimilarity: 85,
+    algorithmStatus: { sbert: true },
+    results: {
+      tier1_historical: [
       {
         id: 1,
-        topic_title: 'Knowledge and practices of malaria prevention among mothers of children under five',
-        supervisor_name: 'Dr. Jane Smith',
-        session_year: '2023/2024',
-        status: 'Approved',
-        jaccard_score: 85,
-        tfidf_score: 82,
-        sbert_score: 80
+        title: 'Knowledge and practices of malaria prevention among mothers of children under five',
+        supervisorName: 'Dr. Jane Smith',
+        sessionYear: '2023/2024',
+        scores: { jaccard: 85, tfidf: 82, sbert: 80, combined: 85 }
       },
       {
         id: 2,
-        topic_title: 'Malaria prevention knowledge among caregivers of under-five children',
-        supervisor_name: 'Dr. John Doe',
-        session_year: '2022/2023',
-        status: 'Completed',
-        jaccard_score: 78,
-        tfidf_score: 75,
-        sbert_score: 73
+        title: 'Malaria prevention knowledge among caregivers of under-five children',
+        supervisorName: 'Dr. John Doe',
+        sessionYear: '2022/2023',
+        scores: { jaccard: 78, tfidf: 75, sbert: 73, combined: 78 }
       },
       {
         id: 3,
-        topic_title: 'Awareness of malaria prevention in children under five years',
-        supervisor_name: 'Prof. Sarah Williams',
-        session_year: '2023/2024',
-        status: 'In Progress',
-        jaccard_score: 72,
-        tfidf_score: 70,
-        sbert_score: 68
+        title: 'Awareness of malaria prevention in children under five years',
+        supervisorName: 'Prof. Sarah Williams',
+        sessionYear: '2023/2024',
+        scores: { jaccard: 72, tfidf: 70, sbert: 68, combined: 72 }
       },
       {
         id: 4,
-        topic_title: 'Maternal knowledge on malaria prevention among under-five children',
-        supervisor_name: 'Dr. Michael Brown',
-        session_year: '2021/2022',
-        status: 'Completed',
-        jaccard_score: 70,
-        tfidf_score: 68,
-        sbert_score: 65
+        title: 'Maternal knowledge on malaria prevention among under-five children',
+        supervisorName: 'Dr. Michael Brown',
+        sessionYear: '2021/2022',
+        scores: { jaccard: 70, tfidf: 68, sbert: 65, combined: 70 }
       },
       {
         id: 5,
-        topic_title: 'Prevention strategies for malaria in children below five years',
-        supervisor_name: 'Dr. Emily Davis',
-        session_year: '2023/2024',
-        status: 'Under Review',
-        jaccard_score: 68,
-        tfidf_score: 65,
-        sbert_score: 62
+        title: 'Prevention strategies for malaria in children below five years',
+        supervisorName: 'Dr. Emily Davis',
+        sessionYear: '2023/2024',
+        scores: { jaccard: 68, tfidf: 65, sbert: 62, combined: 68 }
       }
     ],
-    tier2_matches: [
+      tier2_current_session: [
       {
         id: 6,
-        topic_title: 'Malaria control measures in pediatric populations',
-        supervisor_name: 'Dr. Robert Wilson',
-        session_year: '2022/2023',
-        status: 'Completed',
-        jaccard_score: 55,
-        tfidf_score: 52,
-        sbert_score: 50
+        title: 'Malaria control measures in pediatric populations',
+        supervisorName: 'Dr. Robert Wilson',
+        sessionYear: '2022/2023',
+        scores: { jaccard: 55, tfidf: 52, sbert: 50, combined: 55 }
       }
     ],
-    tier3_matches: []
+      tier3_under_review: []
+    }
   };
 
   const mockLowRiskResponse = {
-    risk_level: 'LOW',
-    max_similarity: 42,
-    sbert_available: true,
-    tier1_matches: [
+    overallRisk: 'LOW',
+    overallMaxSimilarity: 42,
+    algorithmStatus: { sbert: true },
+    results: {
+      tier1_historical: [
       {
         id: 10,
-        topic_title: 'Blockchain integration in healthcare information systems',
-        supervisor_name: 'Dr. Alex Martinez',
-        session_year: '2023/2024',
-        status: 'Approved',
-        jaccard_score: 42,
-        tfidf_score: 38,
-        sbert_score: 35
+        title: 'Blockchain integration in healthcare information systems',
+        supervisorName: 'Dr. Alex Martinez',
+        sessionYear: '2023/2024',
+        scores: { jaccard: 42, tfidf: 38, sbert: 35, combined: 42 }
       },
       {
         id: 11,
-        topic_title: 'Telemedicine platforms using distributed ledger technology',
-        supervisor_name: 'Prof. Linda Garcia',
-        session_year: '2022/2023',
-        status: 'Completed',
-        jaccard_score: 38,
-        tfidf_score: 35,
-        sbert_score: 32
+        title: 'Telemedicine platforms using distributed ledger technology',
+        supervisorName: 'Prof. Linda Garcia',
+        sessionYear: '2022/2023',
+        scores: { jaccard: 38, tfidf: 35, sbert: 32, combined: 38 }
       },
       {
         id: 12,
-        topic_title: 'Digital health records management with blockchain',
-        supervisor_name: 'Dr. David Thompson',
-        session_year: '2023/2024',
-        status: 'In Progress',
-        jaccard_score: 35,
-        tfidf_score: 32,
-        sbert_score: 30
+        title: 'Digital health records management with blockchain',
+        supervisorName: 'Dr. David Thompson',
+        sessionYear: '2023/2024',
+        scores: { jaccard: 35, tfidf: 32, sbert: 30, combined: 35 }
       },
       {
         id: 13,
-        topic_title: 'Secure medical data exchange using cryptocurrency protocols',
-        supervisor_name: 'Dr. Jennifer Moore',
-        session_year: '2022/2023',
-        status: 'Completed',
-        jaccard_score: 30,
-        tfidf_score: 28,
-        sbert_score: 25
+        title: 'Secure medical data exchange using cryptocurrency protocols',
+        supervisorName: 'Dr. Jennifer Moore',
+        sessionYear: '2022/2023',
+        scores: { jaccard: 30, tfidf: 28, sbert: 25, combined: 30 }
       },
       {
         id: 14,
-        topic_title: 'Remote patient monitoring via decentralized networks',
-        supervisor_name: 'Prof. Christopher Lee',
-        session_year: '2021/2022',
-        status: 'Completed',
-        jaccard_score: 28,
-        tfidf_score: 25,
-        sbert_score: 22
+        title: 'Remote patient monitoring via decentralized networks',
+        supervisorName: 'Prof. Christopher Lee',
+        sessionYear: '2021/2022',
+        scores: { jaccard: 28, tfidf: 25, sbert: 22, combined: 28 }
       }
     ],
-    tier2_matches: [],
-    tier3_matches: []
+      tier2_current_session: [],
+      tier3_under_review: []
+    }
   };
 
   // ==================== SCENARIO 1: DUPLICATE TOPIC DETECTION ====================
@@ -164,7 +135,7 @@ describe('End-to-End User Flow Tests', () => {
       render(<App />);
 
       expect(screen.getByTestId('app')).toBeInTheDocument();
-      expect(screen.getByText('Topic Similarity Checker')).toBeInTheDocument();
+      expect(screen.getByText('UNIOSUN Research Topic Similarity Detector')).toBeInTheDocument();
 
       // 2. User enters topic
       const textarea = screen.getByPlaceholderText(/enter your research topic/i);
@@ -199,12 +170,13 @@ describe('End-to-End User Flow Tests', () => {
       expect(screen.getByTestId('risk-title')).toHaveTextContent('High Risk');
 
       // 9. Tier 1 shows 5 historical topics
-      expect(screen.getByTestId('tier-section-tier 1: high similarity matches')).toBeInTheDocument();
-      const tierSection = screen.getByTestId('tier-section-tier 1: high similarity matches');
+      expect(screen.getByTestId('tier-section-tier1')).toBeInTheDocument();
+      const tierSection = screen.getByTestId('tier-section-tier1');
       const tier1Matches = tierSection.querySelectorAll('[data-testid^="topic-match-"]');
       expect(tier1Matches.length).toBe(5);
 
       // 10. Top match has >70% similarity (check within tier 1 section)
+      await user.click(tierSection.querySelector('[data-testid="expand-details-0"]'));
       const jaccard0 = tierSection.querySelector('[data-testid="jaccard-badge-0"]');
       const tfidf0 = tierSection.querySelector('[data-testid="tfidf-badge-0"]');
       const sbert0 = tierSection.querySelector('[data-testid="sbert-badge-0"]');
@@ -212,8 +184,8 @@ describe('End-to-End User Flow Tests', () => {
       expect(tfidf0).toHaveTextContent('82%');
       expect(sbert0).toHaveTextContent('80%');
 
-      // 11. Recommendation: "Request topic modification"
-      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('Request modification');
+      // 11. Recommendation uses the current high-risk copy
+      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('Significant overlap detected');
     });
 
     it('displays all expected details for duplicate detection', async () => {
@@ -232,19 +204,17 @@ describe('End-to-End User Flow Tests', () => {
       }, { timeout: 3000 });
 
       // Verify top match details in Tier 1
-      const tier1Section = screen.getByTestId('tier-section-tier 1: high similarity matches');
+      const tier1Section = screen.getByTestId('tier-section-tier1');
       const topTitle = tier1Section.querySelector('[data-testid="topic-title-0"]');
       const topSupervisor = tier1Section.querySelector('[data-testid="supervisor-0"]');
       const topSession = tier1Section.querySelector('[data-testid="session-0"]');
-      const topStatus = tier1Section.querySelector('[data-testid="status-0"]');
 
       expect(topTitle).toHaveTextContent('Knowledge and practices of malaria prevention among mothers of children under five');
       expect(topSupervisor).toHaveTextContent('Dr. Jane Smith');
       expect(topSession).toHaveTextContent('2023/2024');
-      expect(topStatus).toHaveTextContent('Approved');
 
       // Verify Tier 2 matches shown
-      expect(screen.getByTestId('tier-section-tier 2: medium similarity matches')).toBeInTheDocument();
+      expect(screen.getByTestId('tier-section-tier2')).toBeInTheDocument();
 
       // Verify max similarity
       expect(screen.getByTestId('max-similarity')).toHaveTextContent('85%');
@@ -295,10 +265,11 @@ describe('End-to-End User Flow Tests', () => {
 
       // 5. All similarities <50%
       expect(screen.getByTestId('max-similarity')).toHaveTextContent('42%');
+      await user.click(screen.getByTestId('expand-details-0'));
       expect(screen.getByTestId('jaccard-badge-0')).toHaveTextContent('42%');
 
-      // 6. Recommendation: "Proceed with approval"
-      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('Proceed with approval');
+      // 6. Recommendation uses the current low-risk copy
+      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('appears unique');
     });
 
     it('allows user to check another topic after viewing results', async () => {
@@ -515,7 +486,8 @@ describe('End-to-End User Flow Tests', () => {
       // Verify request data
       expect(requestData).toEqual({
         topic: 'Blockchain applications in telemedicine systems for remote healthcare',
-        keywords: 'blockchain, healthcare, telemedicine'
+        keywords: 'blockchain, healthcare, telemedicine',
+        category: ''
       });
     });
   });

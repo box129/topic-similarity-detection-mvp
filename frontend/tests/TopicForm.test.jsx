@@ -244,7 +244,8 @@ describe('TopicForm Component', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           topic: 'Machine learning algorithms for natural language processing',
-          keywords: ''
+          keywords: '',
+          category: ''
         });
       });
     });
