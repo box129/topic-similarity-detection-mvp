@@ -43,7 +43,44 @@ function App() {
       await new Promise(resolve => setTimeout(resolve, 300));
       
       // Map backend response to the format expected by ResultsDisplay
-        const mapMatches = (matches = []) => matches.map(m => ({
+        const fypData = response.data.data;
+        const isFypSuccess = response.data.status === 'success' && fypData;
+
+        const mapFypTier1Matches = (matches = []) => matches.map(m => ({
+          id: m.id,
+          topic_title: m.title || '',
+          supervisor_name: m.supervisor || '',
+          session_year: m.year || '',
+          category: m.category || '',
+          jaccard_score: m.jaccard || 0,
+          tfidf_score: m.tfidf || 0,
+          sbert_score: m.sbert || 0,
+          combined_similarity_score: m.sbert || m.jaccard || 0
+        }));
+
+        const mapFypTier2Matches = (matches = []) => matches.map(m => ({
+          id: m.id,
+          topic_title: m.title || '',
+          supervisor_name: m.supervisor || '',
+          session_year: m.approved_date || '',
+          jaccard_score: m.jaccard || 0,
+          tfidf_score: m.tfidf || 0,
+          sbert_score: m.sbert || 0,
+          combined_similarity_score: m.sbert || m.jaccard || 0
+        }));
+
+        const mapFypTier3Matches = (matches = []) => matches.map(m => ({
+          id: m.id,
+          topic_title: m.title || '',
+          supervisor_name: m.reviewing_lecturer || '',
+          session_year: m.review_started_at || '',
+          jaccard_score: m.jaccard || 0,
+          tfidf_score: m.tfidf || 0,
+          sbert_score: m.sbert || 0,
+          combined_similarity_score: m.sbert || m.jaccard || 0
+        }));
+
+        const mapLegacyMatches = (matches = []) => matches.map(m => ({
           id: m.id,
           topic_title: m.title || '',
           supervisor_name: m.supervisorName || '',
@@ -60,13 +97,20 @@ function App() {
            ? backendResults.tier1_historical[0].scores?.combined 
            : 0;
 
-        const mappedResults = {
+        const mappedResults = isFypSuccess ? {
+          risk_level: fypData.overall_risk || 'LOW',
+          max_similarity: fypData.max_similarity ?? 0,
+          sbert_available: true,
+          tier1_matches: mapFypTier1Matches(fypData.tier1_historical),
+          tier2_matches: mapFypTier2Matches(fypData.tier2_current),
+          tier3_matches: mapFypTier3Matches(fypData.tier3_under_review)
+        } : {
           risk_level: response.data.overallRisk || 'LOW',
           max_similarity: response.data.overallMaxSimilarity ?? maxScore,
           sbert_available: response.data.algorithmStatus?.sbert || false,
-          tier1_matches: mapMatches(backendResults.tier1_historical),
-          tier2_matches: mapMatches(backendResults.tier2_current_session),
-          tier3_matches: mapMatches(backendResults.tier3_under_review)
+          tier1_matches: mapLegacyMatches(backendResults.tier1_historical),
+          tier2_matches: mapLegacyMatches(backendResults.tier2_current_session),
+          tier3_matches: mapLegacyMatches(backendResults.tier3_under_review)
         };
         
         setResults(mappedResults);

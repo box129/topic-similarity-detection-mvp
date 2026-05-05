@@ -31,6 +31,15 @@ describe('POST /api/similarity/check - Integration Tests', () => {
   const mockEmbedding = new Array(384).fill(0.5);
   let testTopicIds = [];
 
+  const getSimilarityData = (body) => body.data || {
+    input_topic: body.topic,
+    overall_risk: body.overallRisk,
+    max_similarity: body.overallMaxSimilarity,
+    tier1_historical: body.results?.tier1_historical || [],
+    tier2_current: body.results?.tier2_current_session || [],
+    tier3_under_review: body.results?.tier3_under_review || []
+  };
+
   beforeAll(async () => {
     // Set up test environment
     process.env.NODE_ENV = 'test';
@@ -126,38 +135,24 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         .expect(200);
 
       // Check top-level structure
-      expect(response.body).toHaveProperty('topic');
-      expect(response.body).toHaveProperty('keywords');
-      expect(response.body).toHaveProperty('results');
-      expect(response.body).toHaveProperty('overallRisk');
-      expect(response.body).toHaveProperty('processingTime');
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body).toHaveProperty('data');
 
       // Check results structure
-      expect(response.body.results).toHaveProperty('tier1_historical');
-      expect(response.body.results).toHaveProperty('tier2_current_session');
-      expect(response.body.results).toHaveProperty('tier3_under_review');
+      expect(response.body.data).toHaveProperty('tier1_historical');
+      expect(response.body.data).toHaveProperty('tier2_current');
+      expect(response.body.data).toHaveProperty('tier3_under_review');
 
       // Check tier1_historical is array of max 5
-      expect(Array.isArray(response.body.results.tier1_historical)).toBe(true);
-      expect(response.body.results.tier1_historical.length).toBeLessThanOrEqual(5);
+      expect(Array.isArray(response.body.data.tier1_historical)).toBe(true);
+      expect(response.body.data.tier1_historical.length).toBeLessThanOrEqual(5);
 
       // Check tier2 and tier3 are arrays
-      expect(Array.isArray(response.body.results.tier2_current_session)).toBe(true);
-      expect(Array.isArray(response.body.results.tier3_under_review)).toBe(true);
+      expect(Array.isArray(response.body.data.tier2_current)).toBe(true);
+      expect(Array.isArray(response.body.data.tier3_under_review)).toBe(true);
 
       // Check overall risk is valid
-      expect(['LOW', 'MEDIUM', 'HIGH']).toContain(response.body.overallRisk);
-
-      // Check algorithm status if topics exist
-      if (response.body.algorithmStatus) {
-        expect(response.body.algorithmStatus).toHaveProperty('jaccard');
-        expect(response.body.algorithmStatus).toHaveProperty('tfidf');
-        expect(response.body.algorithmStatus).toHaveProperty('sbert');
-      }
-
-      // Check processing time is a number
-      expect(typeof response.body.processingTime).toBe('number');
-      expect(response.body.processingTime).toBeGreaterThan(0);
+      expect(['LOW', 'MEDIUM', 'HIGH']).toContain(response.body.data.overall_risk);
     });
 
     test('should handle topic with keywords', async () => {
@@ -169,8 +164,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body.topic).toBe('Artificial Intelligence in Autonomous Vehicle Navigation Systems');
-      expect(response.body.keywords).toBe('computer vision, sensor fusion, path planning');
+      expect(getSimilarityData(response.body).input_topic).toBe('Artificial Intelligence in Autonomous Vehicle Navigation Systems');
     });
 
     test('should handle topic without keywords', async () => {
@@ -181,8 +175,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body.topic).toBe('Cloud Computing Infrastructure for Big Data Analytics');
-      expect(response.body.keywords).toBeNull();
+      expect(getSimilarityData(response.body).input_topic).toBe('Cloud Computing Infrastructure for Big Data Analytics');
     });
   });
 
@@ -195,7 +188,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should accept topic with more than 24 words (no word count validation)', async () => {
@@ -208,7 +201,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should return 400 for missing topic field', async () => {
@@ -277,7 +270,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
       // If 200, should have results property (graceful degradation)
       // If 500/503, should have error property
       if (response.status === 200) {
-        expect(response.body).toHaveProperty('results');
+        expect(response.body.data || response.body.results).toBeDefined();
       } else {
         expect(response.body).toHaveProperty('error');
       }
@@ -295,7 +288,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         .expect(200);
 
       // Should still return results using Jaccard and TF-IDF
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
       
       // Check algorithm status if present
       if (response.body.algorithmStatus) {
@@ -334,7 +327,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
       // If 200, should have results property (graceful degradation)
       // If 500/503, should have error property
       if (response.status === 200) {
-        expect(response.body).toHaveProperty('results');
+        expect(response.body.data || response.body.results).toBeDefined();
       } else {
         expect(response.body).toHaveProperty('error');
       }
@@ -358,7 +351,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
       expect(responseTime).toBeLessThan(1000);
     });
 
-    test('should include response time in metadata', async () => {
+    test('should include FYP success response envelope', async () => {
       const response = await request(app)
         .post('/api/similarity/check')
         .send({
@@ -366,10 +359,8 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('processingTime');
-      expect(typeof response.body.processingTime).toBe('number');
-      expect(response.body.processingTime).toBeGreaterThan(0);
-      expect(response.body.processingTime).toBeLessThan(1000);
+      expect(response.body.status).toBe('success');
+      expect(response.body.data).toBeDefined();
     });
   });
 
@@ -382,7 +373,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should handle topic with exactly 24 words', async () => {
@@ -393,7 +384,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should handle topic with special characters', async () => {
@@ -404,7 +395,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should handle topic with numbers', async () => {
@@ -415,7 +406,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should handle very long keywords', async () => {
@@ -429,7 +420,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body.keywords).toBe(longKeywords);
+      expect(getSimilarityData(response.body).input_topic).toBe('Distributed Systems Architecture for Cloud Computing Platforms');
     });
   });
 
@@ -442,31 +433,29 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      const tier1 = response.body.results.tier1_historical;
+      const tier1 = getSimilarityData(response.body).tier1_historical;
       
       tier1.forEach(result => {
-        expect(result).toHaveProperty('scores');
-        expect(result.scores.combined).toBeGreaterThanOrEqual(0);
-        expect(result.scores.combined).toBeLessThanOrEqual(100);
+        expect(result).not.toHaveProperty('combined');
         
-        if (result.scores.jaccard !== undefined) {
-          expect(result.scores.jaccard).toBeGreaterThanOrEqual(0);
-          expect(result.scores.jaccard).toBeLessThanOrEqual(100);
+        if (result.jaccard !== undefined) {
+          expect(result.jaccard).toBeGreaterThanOrEqual(0);
+          expect(result.jaccard).toBeLessThanOrEqual(100);
         }
         
-        if (result.scores.tfidf !== undefined) {
-          expect(result.scores.tfidf).toBeGreaterThanOrEqual(0);
-          expect(result.scores.tfidf).toBeLessThanOrEqual(100);
+        if (result.tfidf !== undefined) {
+          expect(result.tfidf).toBeGreaterThanOrEqual(0);
+          expect(result.tfidf).toBeLessThanOrEqual(100);
         }
         
-        if (result.scores.sbert !== undefined) {
-          expect(result.scores.sbert).toBeGreaterThanOrEqual(0);
-          expect(result.scores.sbert).toBeLessThanOrEqual(100);
+        if (result.sbert !== undefined) {
+          expect(result.sbert).toBeGreaterThanOrEqual(0);
+          expect(result.sbert).toBeLessThanOrEqual(100);
         }
       });
     });
 
-    test('should return topics sorted by combined score descending', async () => {
+    test('should not expose combined score in normal success topic results', async () => {
       const response = await request(app)
         .post('/api/similarity/check')
         .send({
@@ -474,11 +463,12 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      const tier1 = response.body.results.tier1_historical;
+      const tier1 = getSimilarityData(response.body).tier1_historical;
       
-      for (let i = 0; i < tier1.length - 1; i++) {
-        expect(tier1[i].scores.combined).toBeGreaterThanOrEqual(tier1[i + 1].scores.combined);
-      }
+      tier1.forEach(result => {
+        expect(result).not.toHaveProperty('combined');
+        expect(result).not.toHaveProperty('scores');
+      });
     });
 
     test('should include all required fields in topic results', async () => {
@@ -489,17 +479,15 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      const tier1 = response.body.results.tier1_historical;
+      const tier1 = getSimilarityData(response.body).tier1_historical;
       
       if (tier1.length > 0) {
         const firstResult = tier1[0];
         
         expect(firstResult).toHaveProperty('id');
         expect(firstResult).toHaveProperty('title');
-        expect(firstResult).toHaveProperty('scores');
-        expect(firstResult.scores).toHaveProperty('combined');
-        expect(firstResult).toHaveProperty('sessionYear');
-        expect(firstResult).toHaveProperty('supervisorName');
+        expect(firstResult).toHaveProperty('year');
+        expect(firstResult).toHaveProperty('supervisor');
         expect(firstResult).toHaveProperty('category');
       }
     });
@@ -515,7 +503,7 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('results');
+      expect(response.body.data || response.body.results).toBeDefined();
     });
 
     test('should reject non-JSON content type', async () => {
