@@ -236,6 +236,90 @@ describe('Similarity Controller', () => {
       expect(firstMatch.scores.sbert).toBe(85);
     });
 
+    it('should expose intended FYP_Selected successful response contract', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected/API-Specifications.md.
+      // This verifies the intended successful response object shape only, not tier or risk logic.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockHistoricalTopics = [
+        {
+          id: 45,
+          title: 'Malaria prevention in children',
+          keywords: 'malaria, prevention, children',
+          session_year: '2022/2023',
+          supervisor_name: 'Dr. Adeyemi',
+          category: 'Infectious Diseases',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.653,
+          matchedKeywords: ['malaria', 'prevention', 'children']
+        }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.721,
+          matchedTerms: ['malaria', 'prevention', 'children']
+        }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.842,
+          usedPrecomputed: false
+        }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({
+          topic,
+          keywords: 'malaria, children, prevention, Osogbo'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body).toHaveProperty('data');
+
+      const data = response.body.data;
+      expect(data).toHaveProperty('input_topic', topic);
+      expect(data).toHaveProperty('word_count');
+      expect(data).toHaveProperty('char_count');
+      expect(data).toHaveProperty('overall_risk');
+      expect(data).toHaveProperty('max_similarity');
+      expect(data).toHaveProperty('tier1_historical');
+      expect(data).toHaveProperty('tier2_current');
+      expect(data).toHaveProperty('tier3_under_review');
+      expect(data).toHaveProperty('recommendation');
+
+      const tier1Match = data.tier1_historical[0];
+      expect(tier1Match).toHaveProperty('id');
+      expect(tier1Match).toHaveProperty('title');
+      expect(tier1Match).toHaveProperty('year');
+      expect(tier1Match).toHaveProperty('supervisor');
+      expect(tier1Match).toHaveProperty('category');
+      expect(tier1Match).toHaveProperty('jaccard');
+      expect(tier1Match).toHaveProperty('tfidf');
+      expect(tier1Match).toHaveProperty('sbert');
+      expect(tier1Match).toHaveProperty('matched_keywords');
+      expect(tier1Match).not.toHaveProperty('combined');
+      expect(tier1Match).not.toHaveProperty('scores.combined');
+    });
+
     it('should handle SBERT service failure gracefully', async () => {
       // Mock database responses
       const mockHistoricalTopics = [
