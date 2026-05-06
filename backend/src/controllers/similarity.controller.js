@@ -167,6 +167,17 @@ function buildFypPartialSuccessResponse({ topic, overallRisk, overallMaxSimilari
   };
 }
 
+function buildValidationErrorResponse(message, field, errorCode) {
+  return {
+    status: 'error',
+    message,
+    details: {
+      field,
+      error_code: errorCode
+    }
+  };
+}
+
 // ============ Prisma Client Singleton ============
 let prisma = null;
 let prismaConnecting = false;
@@ -230,10 +241,9 @@ async function checkSimilarity(req, res, next) {
     const { topic, keywords } = req.body;
 
     if (!topic || typeof topic !== 'string' || topic.trim().length === 0) {
-      return res.status(400).json({
-        error: 'Bad Request',
-        message: 'Topic is required and must be a non-empty string'
-      });
+      return res.status(400).json(
+        buildValidationErrorResponse('Topic is required.', 'topic', 'MISSING_FIELD')
+      );
     }
 
     const queryText = keywords ? `${topic} ${keywords}` : topic;

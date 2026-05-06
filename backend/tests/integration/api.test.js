@@ -212,8 +212,9 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
       expect(response.body.message.toLowerCase()).toContain('topic');
+      expect(response.body).toHaveProperty('details');
     });
 
     test('should return 400 for empty topic', async () => {
@@ -224,7 +225,8 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('details');
     });
 
     test('should return 400 for topic with only whitespace', async () => {
@@ -235,7 +237,8 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('details');
     });
 
     test('should return 400 for null topic', async () => {
@@ -246,7 +249,8 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('details');
     });
   });
 
@@ -513,7 +517,8 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         .send('topic=test')
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('details');
     });
   });
 });
