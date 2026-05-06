@@ -123,6 +123,16 @@ function formatTier3ForFypContract(matches) {
   }));
 }
 
+function withoutSbertScores(matches) {
+  return matches.map(match => ({
+    ...match,
+    scores: {
+      ...match.scores,
+      sbert: null
+    }
+  }));
+}
+
 function buildFypSuccessResponse({ topic, overallRisk, overallMaxSimilarity, tier1, tier2, tier3 }) {
   return {
     status: 'success',
@@ -136,6 +146,23 @@ function buildFypSuccessResponse({ topic, overallRisk, overallMaxSimilarity, tie
       tier2_current: formatTier2ForFypContract(tier2),
       tier3_under_review: formatTier3ForFypContract(tier3),
       recommendation: buildRecommendation(overallRisk)
+    }
+  };
+}
+
+function buildFypPartialSuccessResponse({ topic, overallRisk, overallMaxSimilarity, tier1, tier2, tier3 }) {
+  return {
+    status: 'partial_success',
+    message: 'SBERT semantic analysis unavailable. Showing lexical similarity only (Jaccard, TF-IDF).',
+    data: {
+      input_topic: topic,
+      word_count: countWords(topic),
+      char_count: topic.length,
+      overall_risk: overallRisk,
+      max_similarity: toPercentageScore(overallMaxSimilarity),
+      tier1_historical: formatTier1ForFypContract(withoutSbertScores(tier1)),
+      tier2_current: formatTier2ForFypContract(withoutSbertScores(tier2)),
+      tier3_under_review: formatTier3ForFypContract(withoutSbertScores(tier3))
     }
   };
 }
@@ -398,23 +425,14 @@ async function checkSimilarity(req, res, next) {
       }));
     }
 
-    res.json({
-      topic: topic,
-      keywords: keywords || null,
-      results: {
-        tier1_historical: formatTierScoresForResponse(tier1Historical),
-        tier2_current_session: formatTierScoresForResponse(tier2CurrentSession),
-        tier3_under_review: formatTierScoresForResponse(tier3UnderReview)
-      },
-      overallRisk: overallRisk,
-      overallMaxSimilarity: toPercentageScore(overallMaxSimilarity),
-      algorithmStatus: {
-        jaccard: algorithmResults[0].status === 'fulfilled',
-        tfidf: algorithmResults[1].status === 'fulfilled',
-        sbert: sbertResults !== null
-      },
-      processingTime: processingTime
-    });
+    res.json(buildFypPartialSuccessResponse({
+      topic,
+      overallRisk,
+      overallMaxSimilarity,
+      tier1: tier1Historical,
+      tier2: tier2CurrentSession,
+      tier3: tier3UnderReview
+    }));
 
   } catch (error) {
     logger.error(`Similarity check failed: ${error.message}`, { stack: error.stack });

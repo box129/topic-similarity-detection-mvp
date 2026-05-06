@@ -387,13 +387,11 @@ describe('Similarity Controller', () => {
         .send({ topic: 'Test Topic' });
 
       expect(response.status).toBe(200);
-      expect(response.body.algorithmStatus).toEqual({
-        jaccard: true,
-        tfidf: true,
-        sbert: false
-      });
+      expect(response.body).toHaveProperty('status', 'partial_success');
+      expect(response.body).toHaveProperty('message');
       // Should still return results using Jaccard and TF-IDF only
-      expect(response.body.results.tier1_historical).toBeDefined();
+      expect(response.body.data.tier1_historical).toBeDefined();
+      expect(response.body.data.tier1_historical[0]).toHaveProperty('sbert', null);
     });
 
     it('should expose intended FYP_Selected partial-success response contract when SBERT is unavailable', async () => {
