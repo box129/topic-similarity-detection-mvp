@@ -59,7 +59,7 @@ describe('Similarity Controller', () => {
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
       expect(response.body.message).toContain('Topic is required');
     });
 
@@ -83,7 +83,8 @@ describe('Similarity Controller', () => {
         .send({ topic: '   ' });
 
       expect(response.status).toBe(400);
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('details');
     });
 
     it('should return LOW risk with empty tiers when no topics exist in database', async () => {
