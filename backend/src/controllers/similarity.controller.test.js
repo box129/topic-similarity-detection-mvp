@@ -72,7 +72,7 @@ describe('Similarity Controller', () => {
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should return LOW risk when no topics exist in database', async () => {
+    it('should return LOW risk with empty tiers when no topics exist in database', async () => {
       // Mock empty database
       mockPrismaInstance.$queryRaw
         .mockResolvedValueOnce([]) // historical_topics
@@ -87,12 +87,46 @@ describe('Similarity Controller', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('topic', 'Machine Learning Applications');
-      expect(response.body).toHaveProperty('keywords', 'neural networks, deep learning');
-      expect(response.body).toHaveProperty('overallRisk', 'LOW');
-      expect(response.body.results.tier1_historical).toHaveLength(0);
-      expect(response.body.results.tier2_current_session).toHaveLength(0);
-      expect(response.body.results.tier3_under_review).toHaveLength(0);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body.data).toHaveProperty('input_topic', 'Machine Learning Applications');
+      expect(response.body.data).toHaveProperty('overall_risk', 'LOW');
+      expect(response.body.data).toHaveProperty('max_similarity', 0);
+      expect(response.body.data.tier1_historical).toHaveLength(0);
+      expect(response.body.data.tier2_current).toHaveLength(0);
+      expect(response.body.data.tier3_under_review).toHaveLength(0);
+    });
+
+    it('should expose intended FYP_Selected no-topics success response contract', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected docs.
+      // The no-topics success envelope is inferred from the documented success contract and UI workflow.
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([]) // historical_topics
+        .mockResolvedValueOnce([]) // current_session_topics
+        .mockResolvedValueOnce([]); // under_review_topics
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({
+          topic: 'Machine Learning Applications',
+          keywords: 'neural networks, deep learning'
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body).toHaveProperty('data');
+
+      expect(response.body.data).toHaveProperty('overall_risk', 'LOW');
+      expect(response.body.data).toHaveProperty('max_similarity', 0);
+      expect(response.body.data).toHaveProperty('tier1_historical');
+      expect(response.body.data.tier1_historical).toEqual([]);
+      expect(response.body.data).toHaveProperty('tier2_current');
+      expect(response.body.data.tier2_current).toEqual([]);
+      expect(response.body.data).toHaveProperty('tier3_under_review');
+      expect(response.body.data.tier3_under_review).toEqual([]);
+      expect(response.body.data).toHaveProperty(
+        'recommendation',
+        'Topic appears unique. Proceed with approval.'
+      );
     });
 
     it('should successfully check similarity with all algorithms', async () => {
