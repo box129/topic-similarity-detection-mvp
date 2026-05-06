@@ -72,7 +72,7 @@ describe('Similarity Controller', () => {
       expect(response.body).toHaveProperty('error');
     });
 
-    it('should return LOW risk when no topics exist in database', async () => {
+    it('should return LOW risk with empty tiers when no topics exist in database', async () => {
       // Mock empty database
       mockPrismaInstance.$queryRaw
         .mockResolvedValueOnce([]) // historical_topics
@@ -87,12 +87,13 @@ describe('Similarity Controller', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('topic', 'Machine Learning Applications');
-      expect(response.body).toHaveProperty('keywords', 'neural networks, deep learning');
-      expect(response.body).toHaveProperty('overallRisk', 'LOW');
-      expect(response.body.results.tier1_historical).toHaveLength(0);
-      expect(response.body.results.tier2_current_session).toHaveLength(0);
-      expect(response.body.results.tier3_under_review).toHaveLength(0);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body.data).toHaveProperty('input_topic', 'Machine Learning Applications');
+      expect(response.body.data).toHaveProperty('overall_risk', 'LOW');
+      expect(response.body.data).toHaveProperty('max_similarity', 0);
+      expect(response.body.data.tier1_historical).toHaveLength(0);
+      expect(response.body.data.tier2_current).toHaveLength(0);
+      expect(response.body.data.tier3_under_review).toHaveLength(0);
     });
 
     it('should expose intended FYP_Selected no-topics success response contract', async () => {

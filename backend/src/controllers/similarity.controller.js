@@ -306,18 +306,14 @@ async function checkSimilarity(req, res, next) {
 
     if (allTopics.length === 0) {
       logger.info('No topics found in database');
-      return res.json({
-        topic: topic,
-        keywords: keywords || null,
-        results: {
-          tier1_historical: [],
-          tier2_current_session: [],
-          tier3_under_review: []
-        },
+      return res.json(buildFypSuccessResponse({
+        topic,
         overallRisk: 'LOW',
-        message: 'No existing topics to compare against',
-        processingTime: Date.now() - startTime
-      });
+        overallMaxSimilarity: 0,
+        tier1: [],
+        tier2: [],
+        tier3: []
+      }));
     }
 
     // 4. Run 3 algorithms in parallel
