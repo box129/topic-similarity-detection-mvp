@@ -63,6 +63,20 @@ describe('Similarity Controller', () => {
       expect(response.body.message).toContain('Topic is required');
     });
 
+    it('should expose intended FYP_Selected error response contract for validation errors', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected error-contract docs.
+      // This verifies the intended error envelope only, not expanded validation rules.
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({});
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('details');
+      expect(response.body.details).toHaveProperty('field', 'topic');
+      expect(response.body.details).toHaveProperty('error_code');
+    });
+
     it('should return 400 if topic is empty string', async () => {
       const response = await request(app)
         .post('/api/similarity/check')
