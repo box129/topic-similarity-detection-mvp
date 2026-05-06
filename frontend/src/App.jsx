@@ -44,7 +44,7 @@ function App() {
       
       // Map backend response to the format expected by ResultsDisplay
         const fypData = response.data.data;
-        const isFypSuccess = response.data.status === 'success' && fypData;
+        const isFypResponse = ['success', 'partial_success'].includes(response.data.status) && fypData;
 
         const mapFypTier1Matches = (matches = []) => matches.map(m => ({
           id: m.id,
@@ -97,10 +97,10 @@ function App() {
            ? backendResults.tier1_historical[0].scores?.combined 
            : 0;
 
-        const mappedResults = isFypSuccess ? {
+        const mappedResults = isFypResponse ? {
           risk_level: fypData.overall_risk || 'LOW',
           max_similarity: fypData.max_similarity ?? 0,
-          sbert_available: true,
+          sbert_available: response.data.status !== 'partial_success',
           tier1_matches: mapFypTier1Matches(fypData.tier1_historical),
           tier2_matches: mapFypTier2Matches(fypData.tier2_current),
           tier3_matches: mapFypTier3Matches(fypData.tier3_under_review)
