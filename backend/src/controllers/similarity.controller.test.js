@@ -396,6 +396,82 @@ describe('Similarity Controller', () => {
       expect(response.body.results.tier1_historical).toBeDefined();
     });
 
+    it('should expose intended FYP_Selected partial-success response contract when SBERT is unavailable', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected partial-success docs.
+      // This verifies the intended degraded response object shape only, not tier or risk logic.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockHistoricalTopics = [
+        {
+          id: 45,
+          title: 'Malaria prevention in children',
+          keywords: 'malaria, prevention, children',
+          session_year: '2022/2023',
+          supervisor_name: 'Dr. Adeyemi',
+          category: 'Infectious Diseases',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.653,
+          matchedKeywords: ['malaria', 'prevention', 'children']
+        }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.721,
+          matchedTerms: ['malaria', 'prevention', 'children']
+        }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockRejectedValue(
+        new Error('SBERT service unavailable')
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({
+          topic,
+          keywords: 'malaria, children, prevention, Osogbo'
+        });
+
+      expect(response.body).toHaveProperty('status', 'partial_success');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('data');
+
+      const data = response.body.data;
+      expect(data).toHaveProperty('input_topic', topic);
+      expect(data).toHaveProperty('word_count');
+      expect(data).toHaveProperty('char_count');
+      expect(data).toHaveProperty('overall_risk');
+      expect(data).toHaveProperty('max_similarity');
+      expect(data).toHaveProperty('tier1_historical');
+      expect(data).toHaveProperty('tier2_current');
+      expect(data).toHaveProperty('tier3_under_review');
+
+      const tier1Match = data.tier1_historical[0];
+      expect(tier1Match).toHaveProperty('id');
+      expect(tier1Match).toHaveProperty('title');
+      expect(tier1Match).toHaveProperty('year');
+      expect(tier1Match).toHaveProperty('supervisor');
+      expect(tier1Match).toHaveProperty('category');
+      expect(tier1Match).toHaveProperty('jaccard');
+      expect(tier1Match).toHaveProperty('tfidf');
+      expect(tier1Match).toHaveProperty('sbert', null);
+      expect(tier1Match).toHaveProperty('matched_keywords');
+    });
+
     it('should return HIGH risk for current session matches', async () => {
       // Mock database with high similarity current session topic
       const mockCurrentSessionTopics = [
