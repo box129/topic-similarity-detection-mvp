@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const { checkSimilarity } = require('./similarity.controller');
+const { errorHandler } = require('../middleware/errorHandler.middleware');
 
 // Mock dependencies before requiring them
 jest.mock('@prisma/client', () => {
@@ -41,9 +42,7 @@ describe('Similarity Controller', () => {
     app.post('/api/similarity/check', checkSimilarity);
     
     // Error handler
-    app.use((err, req, res, next) => {
-      res.status(500).json({ error: err.message });
-    });
+    app.use(errorHandler);
 
     // Get the mock Prisma instance
     mockPrismaInstance = new PrismaClient();
