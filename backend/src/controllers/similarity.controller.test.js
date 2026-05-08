@@ -100,6 +100,26 @@ describe('Similarity Controller', () => {
       expect(response.body).toHaveProperty('details');
     });
 
+    it('should expose intended FYP_Selected database error response contract', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected database-error docs.
+      // This uses the controller-level Prisma mock so the DB query path reliably fails.
+      mockPrismaInstance.$queryRaw.mockRejectedValueOnce(
+        new Error('Database connection failed')
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({
+          topic: 'Machine Learning Applications in Healthcare Diagnosis'
+        });
+
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message', 'Database connection failed. Please try again later.');
+      expect(response.body).toHaveProperty('details');
+      expect(response.body.details).toHaveProperty('error_code', 'DB_CONNECTION_ERROR');
+    });
+
     it('should return LOW risk with empty tiers when no topics exist in database', async () => {
       // Mock empty database
       mockPrismaInstance.$queryRaw
