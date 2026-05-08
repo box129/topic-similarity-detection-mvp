@@ -82,10 +82,10 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Resource not found'
+        status: 'error',
+        message: 'Resource not found',
+        details: {
+          error_code: 'NOT_FOUND'
         }
       });
     });
@@ -98,10 +98,10 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(404);
       expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Resource not found'
+        status: 'error',
+        message: 'Resource not found',
+        details: {
+          error_code: 'NOT_FOUND'
         }
       });
     });

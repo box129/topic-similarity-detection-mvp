@@ -543,11 +543,10 @@ describe('404 Handler', () => {
       .get('/api/non-existent-route')
       .expect(404);
 
-    // New error handler format
-    expect(response.body).toHaveProperty('success', false);
-    expect(response.body).toHaveProperty('error');
-    expect(response.body.error).toHaveProperty('code', 'NOT_FOUND');
-    expect(response.body.error).toHaveProperty('message');
+    expect(response.body).toHaveProperty('status', 'error');
+    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('details');
+    expect(response.body.details).toHaveProperty('error_code', 'NOT_FOUND');
   });
 
   test('should return 404 for wrong HTTP method', async () => {
@@ -555,8 +554,9 @@ describe('404 Handler', () => {
       .get('/api/similarity/check')
       .expect(404);
 
-    // New error handler format
-    expect(response.body).toHaveProperty('success', false);
-    expect(response.body).toHaveProperty('error');
+    expect(response.body).toHaveProperty('status', 'error');
+    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('details');
+    expect(response.body.details).toHaveProperty('error_code', 'NOT_FOUND');
   });
 });

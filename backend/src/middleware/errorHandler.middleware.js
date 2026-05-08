@@ -69,10 +69,17 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 403;
     errorCode = 'FORBIDDEN';
     message = 'Access denied';
-  } else if (err.name === 'NotFoundError') {
+  } else if (err.name === 'NotFoundError' || statusCode === 404 || errorCode === 'NOT_FOUND') {
     statusCode = 404;
     errorCode = 'NOT_FOUND';
     message = err.message || 'Resource not found';
+    return res.status(statusCode).json({
+      status: 'error',
+      message,
+      details: {
+        error_code: errorCode
+      }
+    });
   } else if (err.name === 'RateLimitError' || err.statusCode === 429) {
     statusCode = 429;
     errorCode = 'RATE_LIMIT_EXCEEDED';
