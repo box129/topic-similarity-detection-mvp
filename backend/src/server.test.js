@@ -100,6 +100,19 @@ describe('Server Integration Tests', () => {
 
       expect(response.body).toBeDefined();
     });
+
+    test('should expose intended FYP_Selected shared error envelope for 404 routes', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected common error-envelope docs.
+      // Exact 404 message and error_code still need verification.
+      const response = await request(app)
+        .get('/non-existent-route')
+        .expect(404);
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('details');
+      expect(response.body.details).toHaveProperty('error_code');
+    });
   });
 
   describe('URL Encoded Parsing', () => {
