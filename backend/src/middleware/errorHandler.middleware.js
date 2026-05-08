@@ -55,6 +55,16 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  if (err.message === 'Database connection failed') {
+    return res.status(500).json({
+      status: 'error',
+      message: 'Database connection failed. Please try again later.',
+      details: {
+        error_code: 'DB_CONNECTION_ERROR'
+      }
+    });
+  }
+
   // Handle specific error types
   if (err.name === 'ValidationError') {
     statusCode = 400;
