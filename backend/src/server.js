@@ -22,7 +22,18 @@ app.use(express.urlencoded({ extended: true }));
 // Rate limiting
 const limiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.max
+  max: config.rateLimit.max,
+  handler: (req, res) => {
+    res.set('Retry-After', '300');
+    res.status(429).json({
+      status: 'error',
+      message: 'Rate limit exceeded. Please try again in 5 minutes.',
+      details: {
+        retry_after: 300,
+        limit: '100 requests per hour'
+      }
+    });
+  }
 });
 app.use(limiter);
 
