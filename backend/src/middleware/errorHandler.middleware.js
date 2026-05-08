@@ -114,6 +114,16 @@ const errorHandler = (err, req, res, next) => {
     details = null;
   }
 
+  if (statusCode === 500) {
+    return res.status(500).json({
+      status: 'error',
+      message,
+      details: {
+        error_code: 'INTERNAL_ERROR'
+      }
+    });
+  }
+
   // Build error response
   const errorResponse = {
     success: false,

@@ -208,10 +208,10 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Something went wrong'
+        status: 'error',
+        message: 'Something went wrong',
+        details: {
+          error_code: 'INTERNAL_ERROR'
         }
       });
     });
@@ -223,10 +223,10 @@ describe('Error Handler Middleware', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An unexpected error occurred'
+        status: 'error',
+        message: 'An unexpected error occurred',
+        details: {
+          error_code: 'INTERNAL_ERROR'
         }
       });
     });
@@ -260,10 +260,10 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, req, res, next);
 
       expect(res.json).toHaveBeenCalledWith({
-        success: false,
-        error: {
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'An unexpected error occurred'
+        status: 'error',
+        message: 'An unexpected error occurred',
+        details: {
+          error_code: 'INTERNAL_ERROR'
         }
       });
 
@@ -280,10 +280,11 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, req, res, next);
 
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-        success: false,
-        error: expect.objectContaining({
-          message: 'Internal database connection failed'
-        })
+        status: 'error',
+        message: 'Internal database connection failed',
+        details: {
+          error_code: 'INTERNAL_ERROR'
+        }
       }));
 
       process.env.NODE_ENV = originalEnv;
@@ -299,7 +300,8 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.error.stack).toBeUndefined();
+      expect(jsonCall.stack).toBeUndefined();
+      expect(jsonCall.details.stack).toBeUndefined();
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -314,7 +316,8 @@ describe('Error Handler Middleware', () => {
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.error.stack).toBe('Error: Test error\n    at test.js:1:1');
+      expect(jsonCall.stack).toBeUndefined();
+      expect(jsonCall.details.stack).toBeUndefined();
 
       process.env.NODE_ENV = originalEnv;
     });
@@ -427,40 +430,40 @@ describe('Error Handler Middleware', () => {
   });
 
   describe('Response Format Consistency', () => {
-    test('should always return success: false', () => {
+    test('should return status error for generic internal errors', () => {
       const error = new Error('Test error');
 
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.success).toBe(false);
+      expect(jsonCall.status).toBe('error');
     });
 
-    test('should always include error.code', () => {
+    test('should include internal error_code for generic internal errors', () => {
       const error = new Error('Test error');
 
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.error.code).toBeDefined();
+      expect(jsonCall.details.error_code).toBe('INTERNAL_ERROR');
     });
 
-    test('should always include error.message', () => {
+    test('should include top-level message for generic internal errors', () => {
       const error = new Error('Test error');
 
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.error.message).toBeDefined();
+      expect(jsonCall.message).toBeDefined();
     });
 
-    test('should only include details when available', () => {
+    test('should not include undocumented extra detail keys for generic internal errors', () => {
       const error = new Error('Test error');
 
       errorHandler(error, req, res, next);
 
       const jsonCall = res.json.mock.calls[0][0];
-      expect(jsonCall.error.details).toBeUndefined();
+      expect(Object.keys(jsonCall.details)).toEqual(['error_code']);
     });
   });
 });
