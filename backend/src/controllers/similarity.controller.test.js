@@ -518,6 +518,85 @@ describe('Similarity Controller', () => {
       expect(tier1Match).toHaveProperty('matched_keywords');
     });
 
+    it('should base normal-success risk and max similarity on highest SBERT score across tiers', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected tier/risk rules.
+      // Combined similarity is out of scope for this normal-success decision logic.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockHistoricalTopics = [
+        {
+          id: 101,
+          title: 'Malaria prevention awareness among children',
+          keywords: 'malaria prevention children',
+          session_year: '2022/2023',
+          supervisor_name: 'Dr. Adeyemi',
+          category: 'Infectious Diseases',
+          embedding: null
+        }
+      ];
+      const mockCurrentSessionTopics = [
+        {
+          id: 202,
+          title: 'Malaria control practices in pediatric populations',
+          keywords: 'malaria control pediatric',
+          session_year: '2025/2026',
+          supervisor_name: 'Dr. Balogun',
+          category: 'Public Health',
+          approved_date: new Date('2026-01-15T10:30:00Z'),
+          student_id: 'STU-2024-103',
+          embedding: null
+        }
+      ];
+      const mockUnderReviewTopics = [
+        {
+          id: 303,
+          title: 'Prevention strategies for malaria in children',
+          keywords: 'prevention malaria children',
+          session_year: '2025/2026',
+          supervisor_name: 'Dr. Ibrahim',
+          category: 'Public Health',
+          review_started_at: new Date('2026-01-31T14:45:00Z'),
+          reviewing_lecturer: 'Dr. Ibrahim',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce(mockCurrentSessionTopics)
+        .mockResolvedValueOnce(mockUnderReviewTopics);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.92, matchedKeywords: ['malaria', 'prevention'] },
+        { topicId: 202, title: mockCurrentSessionTopics[0].title, score: 0.95, matchedKeywords: ['malaria'] },
+        { topicId: 303, title: mockUnderReviewTopics[0].title, score: 0.94, matchedKeywords: ['malaria', 'children'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.91, matchedTerms: ['malaria', 'prevention'] },
+        { topicId: 202, title: mockCurrentSessionTopics[0].title, score: 0.93, matchedTerms: ['malaria'] },
+        { topicId: 303, title: mockUnderReviewTopics[0].title, score: 0.92, matchedTerms: ['malaria', 'children'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.49, usedPrecomputed: false },
+        { topicId: 202, title: mockCurrentSessionTopics[0].title, score: 0.65, usedPrecomputed: false },
+        { topicId: 303, title: mockUnderReviewTopics[0].title, score: 0.64, usedPrecomputed: false }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data.tier1_historical).toHaveLength(1);
+      expect(response.body.data.tier2_current).toHaveLength(1);
+      expect(response.body.data.tier3_under_review).toHaveLength(1);
+      expect(response.body.data).toHaveProperty('max_similarity', 65);
+      expect(response.body.data).toHaveProperty('overall_risk', 'MEDIUM');
+    });
+
     it('should return HIGH risk for current session matches', async () => {
       // Mock database with high similarity current session topic
       const mockCurrentSessionTopics = [
