@@ -138,6 +138,28 @@ describe('Server Error Handling', () => {
     // Should return 400 for bad JSON
     expect([400, 404]).toContain(response.status);
   });
+
+  test('should expose intended FYP_Selected shared error envelope for generic internal errors', async () => {
+    // Reconciliation spec based on authoritative FYP_Selected internal-error docs.
+    // Exact human-readable message still needs verification.
+    const express = require('express');
+    const { errorHandler } = require('./middleware/errorHandler.middleware');
+    const testApp = express();
+
+    testApp.get('/force-internal-error', (req, res, next) => {
+      next(new Error('Unexpected test failure'));
+    });
+    testApp.use(errorHandler);
+
+    const response = await request(testApp)
+      .get('/force-internal-error')
+      .expect(500);
+
+    expect(response.body).toHaveProperty('status', 'error');
+    expect(response.body).toHaveProperty('message');
+    expect(response.body).toHaveProperty('details');
+    expect(response.body.details).toHaveProperty('error_code', 'INTERNAL_ERROR');
+  });
 });
 
 describe('Server Configuration', () => {
