@@ -168,3 +168,30 @@ describe('Server Configuration', () => {
     expect(typeof app).toBe('function');
   });
 });
+
+describe('Rate Limit Contract Reconciliation', () => {
+  test('should expose intended FYP_Selected rate-limit error response contract', async () => {
+    // Reconciliation spec based on authoritative FYP_Selected rate-limit docs.
+    // Rate-limit error_code is not documented, so this intentionally does not assert one.
+    let response;
+
+    for (let i = 0; i < 120; i++) {
+      response = await request(app).get('/health');
+
+      if (response.status === 429) {
+        break;
+      }
+    }
+
+    expect(response.status).toBe(429);
+    expect(response.body).toHaveProperty('status', 'error');
+    expect(response.body).toHaveProperty(
+      'message',
+      'Rate limit exceeded. Please try again in 5 minutes.'
+    );
+    expect(response.body).toHaveProperty('details');
+    expect(response.body.details).toHaveProperty('retry_after', 300);
+    expect(response.body.details).toHaveProperty('limit', '100 requests per hour');
+    expect(response.headers).toHaveProperty('retry-after', '300');
+  }, 15000);
+});
