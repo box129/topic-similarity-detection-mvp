@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
 const { checkSimilarity } = require('./similarity.controller');
+const { errorHandler } = require('../middleware/errorHandler.middleware');
 
 // Mock dependencies before requiring them
 jest.mock('@prisma/client', () => {
@@ -41,9 +42,7 @@ describe('Similarity Controller', () => {
     app.post('/api/similarity/check', checkSimilarity);
     
     // Error handler
-    app.use((err, req, res, next) => {
-      res.status(500).json({ error: err.message });
-    });
+    app.use(errorHandler);
 
     // Get the mock Prisma instance
     mockPrismaInstance = new PrismaClient();
@@ -75,6 +74,20 @@ describe('Similarity Controller', () => {
       expect(response.body).toHaveProperty('details');
       expect(response.body.details).toHaveProperty('field', 'topic');
       expect(response.body.details).toHaveProperty('error_code');
+    });
+
+    it('should expose intended FYP_Selected shared error response contract for malformed JSON', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected shared error-contract docs.
+      // This verifies the intended middleware-driven invalid request format envelope only.
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .set('Content-Type', 'application/json')
+        .send('{"topic": invalid json}');
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message', 'Invalid request format.');
+      expect(response.body).toHaveProperty('details');
+      expect(response.body.details).toHaveProperty('error_code', 'INVALID_FORMAT');
     });
 
     it('should return 400 if topic is empty string', async () => {

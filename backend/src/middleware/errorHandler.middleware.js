@@ -45,6 +45,16 @@ const errorHandler = (err, req, res, next) => {
     ip: req.ip
   });
 
+  if (err.type === 'entity.parse.failed' || (err instanceof SyntaxError && err.status === 400 && 'body' in err)) {
+    return res.status(400).json({
+      status: 'error',
+      message: 'Invalid request format.',
+      details: {
+        error_code: 'INVALID_FORMAT'
+      }
+    });
+  }
+
   // Handle specific error types
   if (err.name === 'ValidationError') {
     statusCode = 400;

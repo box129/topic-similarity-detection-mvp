@@ -309,7 +309,10 @@ describe('POST /api/similarity/check - Integration Tests', () => {
         .send('{"topic": invalid json}')
         .expect(400);
 
-      expect(response.body).toHaveProperty('error');
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message', 'Invalid request format.');
+      expect(response.body).toHaveProperty('details');
+      expect(response.body.details).toHaveProperty('error_code', 'INVALID_FORMAT');
     });
 
     test('should handle unexpected errors gracefully', async () => {
