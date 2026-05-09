@@ -83,6 +83,24 @@ function buildRecommendation(overallRisk) {
   return 'Topic appears unique. Proceed with approval.';
 }
 
+function calculateMaxSbertSimilarity(...tiers) {
+  return tiers
+    .flat()
+    .reduce((maxScore, match) => Math.max(maxScore, match.scores?.sbert || 0), 0);
+}
+
+function classifyRiskFromSbertScore(score) {
+  if (score >= RISK_THRESHOLDS.HIGH_TIER1) {
+    return 'HIGH';
+  }
+
+  if (score >= RISK_THRESHOLDS.MEDIUM_TIER1) {
+    return 'MEDIUM';
+  }
+
+  return 'LOW';
+}
+
 function formatTier1ForFypContract(matches) {
   return matches.map(match => ({
     id: match.id,
@@ -419,16 +437,22 @@ async function checkSimilarity(req, res, next) {
 
     // 7. Calculate overall risk
     const overallRisk = calculateOverallRisk(tier1Historical, tier2CurrentSession, tier3UnderReview);
+    const normalSuccessMaxSbert = sbertResults !== null
+      ? calculateMaxSbertSimilarity(tier1Historical, tier2CurrentSession, tier3UnderReview)
+      : null;
+    const normalSuccessRisk = sbertResults !== null
+      ? classifyRiskFromSbertScore(normalSuccessMaxSbert)
+      : null;
 
     // 8. Return JSON response
     const processingTime = Date.now() - startTime;
-    logger.info(`Similarity check completed in ${processingTime}ms with risk level: ${overallRisk}`);
+    logger.info(`Similarity check completed in ${processingTime}ms with risk level: ${normalSuccessRisk || overallRisk}`);
 
     if (sbertResults !== null) {
       return res.json(buildFypSuccessResponse({
         topic,
-        overallRisk,
-        overallMaxSimilarity,
+        overallRisk: normalSuccessRisk,
+        overallMaxSimilarity: normalSuccessMaxSbert,
         tier1: tier1Historical,
         tier2: tier2CurrentSession,
         tier3: tier3UnderReview
