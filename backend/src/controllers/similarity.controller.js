@@ -548,8 +548,10 @@ function combineAlgorithmResults(allTopics, jaccardResults, tfidfResults, sbertR
     return entry;
   });
 
-  // Sort by combined score descending
-  results.sort((a, b) => b.combinedScore - a.combinedScore);
+  // Normal success uses SBERT ranking; degraded mode keeps existing lexical combined ordering.
+  results.sort((a, b) => hasSbert
+    ? b.sbert - a.sbert
+    : b.combinedScore - a.combinedScore);
 
   return results;
 }
