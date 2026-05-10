@@ -597,6 +597,52 @@ describe('Similarity Controller', () => {
       expect(response.body.data).toHaveProperty('overall_risk', 'MEDIUM');
     });
 
+    it('should expose baseline recommendation text based on normal-success overall risk', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected baseline recommendation rules.
+      // Tier-specific coordination wording, no-topics, and degraded-mode recommendations are out of scope here.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockHistoricalTopics = [
+        {
+          id: 101,
+          title: 'Malaria prevention awareness among children',
+          keywords: 'malaria prevention children',
+          session_year: '2022/2023',
+          supervisor_name: 'Dr. Adeyemi',
+          category: 'Infectious Diseases',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.35, matchedKeywords: ['malaria'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.45, matchedTerms: ['malaria'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 101, title: mockHistoricalTopics[0].title, score: 0.75, usedPrecomputed: false }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body.data).toHaveProperty('overall_risk', 'HIGH');
+      expect(response.body.data).toHaveProperty(
+        'recommendation',
+        'High similarity detected. Request topic modification or check with colleagues.'
+      );
+    });
+
     it('should order normal-success tier results by SBERT score descending', async () => {
       // Reconciliation spec based on authoritative FYP_Selected tier-ordering rules.
       // This verifies ordering only; tier limits, degraded mode, risk, and recommendations are out of scope here.
