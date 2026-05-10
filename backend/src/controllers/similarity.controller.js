@@ -89,6 +89,16 @@ function calculateMaxSbertSimilarity(...tiers) {
     .reduce((maxScore, match) => Math.max(maxScore, match.scores?.sbert || 0), 0);
 }
 
+function calculateMaxLexicalSimilarity(...tiers) {
+  return tiers
+    .flat()
+    .reduce((maxScore, match) => Math.max(
+      maxScore,
+      match.scores?.jaccard || 0,
+      match.scores?.tfidf || 0
+    ), 0);
+}
+
 function classifyRiskFromSbertScore(score) {
   if (score >= RISK_THRESHOLDS.HIGH_TIER1) {
     return 'HIGH';
@@ -459,10 +469,16 @@ async function checkSimilarity(req, res, next) {
       }));
     }
 
+    const degradedMaxLexical = calculateMaxLexicalSimilarity(
+      tier1Historical,
+      tier2CurrentSession,
+      tier3UnderReview
+    );
+
     res.json(buildFypPartialSuccessResponse({
       topic,
-      overallRisk,
-      overallMaxSimilarity,
+      overallRisk: classifyRiskFromSbertScore(degradedMaxLexical),
+      overallMaxSimilarity: degradedMaxLexical,
       tier1: tier1Historical,
       tier2: tier2CurrentSession,
       tier3: tier3UnderReview
