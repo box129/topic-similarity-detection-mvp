@@ -518,6 +518,60 @@ describe('Similarity Controller', () => {
       expect(tier1Match).toHaveProperty('matched_keywords');
     });
 
+    it('should base degraded risk and max similarity on highest lexical score when SBERT is unavailable', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected degraded-mode rules.
+      // This verifies degraded risk/max only; tier membership, ordering, and recommendations are out of scope here.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockHistoricalTopics = [
+        {
+          id: 45,
+          title: 'Malaria prevention in children',
+          keywords: 'malaria, prevention, children',
+          session_year: '2022/2023',
+          supervisor_name: 'Dr. Adeyemi',
+          category: 'Infectious Diseases',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce(mockHistoricalTopics)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.35,
+          matchedKeywords: ['malaria']
+        }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        {
+          topicId: 45,
+          title: 'Malaria prevention in children',
+          score: 0.40,
+          matchedTerms: ['malaria']
+        }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockRejectedValue(
+        new Error('SBERT service unavailable')
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'partial_success');
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('max_similarity', 40);
+      expect(response.body.data).toHaveProperty('overall_risk', 'LOW');
+    });
+
     it('should base normal-success risk and max similarity on highest SBERT score across tiers', async () => {
       // Reconciliation spec based on authoritative FYP_Selected tier/risk rules.
       // Combined similarity is out of scope for this normal-success decision logic.
