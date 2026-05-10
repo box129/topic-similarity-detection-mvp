@@ -73,7 +73,7 @@ function calculateMinutesAgo(value) {
 
 function buildRecommendation(overallRisk) {
   if (overallRisk === 'HIGH') {
-    return 'High similarity detected. Review the flagged topics and request topic modification if needed.';
+    return 'High similarity detected. Request topic modification or check with colleagues.';
   }
 
   if (overallRisk === 'MEDIUM') {
