@@ -697,6 +697,54 @@ describe('Similarity Controller', () => {
       );
     });
 
+    it('should include Tier 3 coordination guidance in high-risk normal-success recommendations', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected Tier 3 coordination guidance.
+      // MEDIUM + Tier 3, degraded mode, and same-lecturer behavior are out of scope here.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockUnderReviewTopics = [
+        {
+          id: 301,
+          title: 'Malaria prevention strategies for children',
+          keywords: 'malaria prevention strategies children',
+          session_year: '2025/2026',
+          supervisor_name: 'Dr. Ibrahim',
+          category: 'Public Health',
+          review_started_at: new Date('2026-01-31T14:45:00Z'),
+          reviewing_lecturer: 'Dr. Ibrahim',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(mockUnderReviewTopics);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        { topicId: 301, title: mockUnderReviewTopics[0].title, score: 0.20, matchedKeywords: ['malaria'] }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        { topicId: 301, title: mockUnderReviewTopics[0].title, score: 0.30, matchedTerms: ['malaria'] }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockResolvedValue([
+        { topicId: 301, title: mockUnderReviewTopics[0].title, score: 0.88, usedPrecomputed: false }
+      ]);
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'success');
+      expect(response.body.data).toHaveProperty('overall_risk', 'HIGH');
+      expect(response.body.data.tier3_under_review).toHaveLength(1);
+      expect(response.body.data.tier3_under_review[0]).toHaveProperty('reviewing_lecturer', 'Dr. Ibrahim');
+      expect(response.body.data.recommendation).toMatch(/coordinate/i);
+      expect(response.body.data.recommendation).toContain('Dr. Ibrahim');
+    });
+
     it('should order normal-success tier results by SBERT score descending', async () => {
       // Reconciliation spec based on authoritative FYP_Selected tier-ordering rules.
       // This verifies ordering only; tier limits, degraded mode, risk, and recommendations are out of scope here.
