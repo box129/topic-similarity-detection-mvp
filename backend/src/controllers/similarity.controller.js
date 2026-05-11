@@ -71,8 +71,13 @@ function calculateMinutesAgo(value) {
   return Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
 }
 
-function buildRecommendation(overallRisk) {
+function buildRecommendation(overallRisk, tier3 = []) {
   if (overallRisk === 'HIGH') {
+    const reviewingLecturer = tier3[0]?.reviewingLecturer;
+    if (reviewingLecturer) {
+      return `High similarity detected. Coordinate with ${reviewingLecturer} before proceeding to avoid duplicate approvals.`;
+    }
+
     return 'High similarity detected. Request topic modification or check with colleagues.';
   }
 
@@ -173,7 +178,7 @@ function buildFypSuccessResponse({ topic, overallRisk, overallMaxSimilarity, tie
       tier1_historical: formatTier1ForFypContract(tier1),
       tier2_current: formatTier2ForFypContract(tier2),
       tier3_under_review: formatTier3ForFypContract(tier3),
-      recommendation: buildRecommendation(overallRisk)
+      recommendation: buildRecommendation(overallRisk, tier3)
     }
   };
 }
