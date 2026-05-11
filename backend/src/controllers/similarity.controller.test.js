@@ -572,6 +572,88 @@ describe('Similarity Controller', () => {
       expect(response.body.data).toHaveProperty('overall_risk', 'LOW');
     });
 
+    it('should include degraded Tier 2 and Tier 3 matches using lexical OR thresholds when SBERT is unavailable', async () => {
+      // Reconciliation spec based on authoritative FYP_Selected degraded lexical OR rules.
+      // This verifies degraded Tier 2/Tier 3 membership only; ordering, hard limits, and recommendations are out of scope here.
+      const topic = 'Knowledge of malaria prevention among children under five in Osogbo';
+      const mockCurrentSessionTopics = [
+        {
+          id: 202,
+          title: 'Malaria prevention campaign for children',
+          keywords: 'malaria prevention children',
+          session_year: '2025/2026',
+          supervisor_name: 'Dr. Balogun',
+          category: 'Public Health',
+          approved_date: new Date('2026-01-15T10:30:00Z'),
+          student_id: 'STU-2024-103',
+          embedding: null
+        }
+      ];
+      const mockUnderReviewTopics = [
+        {
+          id: 303,
+          title: 'Childhood malaria prevention strategies',
+          keywords: 'childhood malaria prevention',
+          session_year: '2025/2026',
+          supervisor_name: 'Dr. Ibrahim',
+          category: 'Public Health',
+          review_started_at: new Date('2026-01-31T14:45:00Z'),
+          reviewing_lecturer: 'Dr. Ibrahim',
+          embedding: null
+        }
+      ];
+
+      mockPrismaInstance.$queryRaw
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce(mockCurrentSessionTopics)
+        .mockResolvedValueOnce(mockUnderReviewTopics);
+
+      jaccardService.calculateBatch.mockReturnValue([
+        {
+          topicId: 202,
+          title: mockCurrentSessionTopics[0].title,
+          score: 0.62,
+          matchedKeywords: ['malaria', 'prevention']
+        },
+        {
+          topicId: 303,
+          title: mockUnderReviewTopics[0].title,
+          score: 0.25,
+          matchedKeywords: ['malaria']
+        }
+      ]);
+
+      tfidfService.calculateTfIdfSimilarity.mockReturnValue([
+        {
+          topicId: 202,
+          title: mockCurrentSessionTopics[0].title,
+          score: 0.20,
+          matchedTerms: ['malaria']
+        },
+        {
+          topicId: 303,
+          title: mockUnderReviewTopics[0].title,
+          score: 0.64,
+          matchedTerms: ['childhood', 'malaria', 'prevention']
+        }
+      ]);
+
+      sbertService.calculateSbertSimilarities.mockRejectedValue(
+        new Error('SBERT service unavailable')
+      );
+
+      const response = await request(app)
+        .post('/api/similarity/check')
+        .send({ topic });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty('status', 'partial_success');
+      expect(response.body.data.tier2_current.map(match => match.id)).toContain(202);
+      expect(response.body.data.tier3_under_review.map(match => match.id)).toContain(303);
+      expect(response.body.data.tier2_current[0]).toHaveProperty('sbert', null);
+      expect(response.body.data.tier3_under_review[0]).toHaveProperty('sbert', null);
+    });
+
     it('should base normal-success risk and max similarity on highest SBERT score across tiers', async () => {
       // Reconciliation spec based on authoritative FYP_Selected tier/risk rules.
       // Combined similarity is out of scope for this normal-success decision logic.

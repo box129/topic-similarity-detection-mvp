@@ -445,8 +445,9 @@ async function checkSimilarity(req, res, next) {
 
     // 6. Filter into 3 tiers
     const tier1Historical = filterTier1Historical(combinedResults, parsedHistorical);
-    const tier2CurrentSession = filterTier2CurrentSession(combinedResults, parsedCurrentSession);
-    const tier3UnderReview = filterTier3UnderReview(combinedResults, parsedUnderReview);
+    const hasSbertResults = sbertResults !== null;
+    const tier2CurrentSession = filterTier2CurrentSession(combinedResults, parsedCurrentSession, hasSbertResults);
+    const tier3UnderReview = filterTier3UnderReview(combinedResults, parsedUnderReview, hasSbertResults);
 
     logger.info(`Tiers: T1=${tier1Historical.length}, T2=${tier2CurrentSession.length}, T3=${tier3UnderReview.length}`);
 
@@ -617,14 +618,23 @@ function filterTier1Historical(combinedResults, historicalTopics) {
  * @param {Array} currentSessionTopics - Current session topics from database
  * @returns {Array} Current session topics with high similarity
  */
-function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
+function meetsTierThreshold(result, hasSbertResults) {
+  if (hasSbertResults) {
+    return result.combinedScore >= TIER_FILTER_THRESHOLD &&
+      result.sbert >= TIER_FILTER_THRESHOLD;
+  }
+
+  return result.jaccard >= TIER_FILTER_THRESHOLD ||
+    result.tfidf >= TIER_FILTER_THRESHOLD;
+}
+
+function filterTier2CurrentSession(combinedResults, currentSessionTopics, hasSbertResults = true) {
   const currentSessionIds = new Set(currentSessionTopics.map(t => t.id));
   
   const tier2 = combinedResults
     .filter(result => 
       currentSessionIds.has(result.topic.id) && 
-      result.combinedScore >= TIER_FILTER_THRESHOLD &&
-      result.sbert >= TIER_FILTER_THRESHOLD
+      meetsTierThreshold(result, hasSbertResults)
     )
     .map(result => ({
       id: result.topic.id,
@@ -655,14 +665,13 @@ function filterTier2CurrentSession(combinedResults, currentSessionTopics) {
  * @param {Array} underReviewTopics - Under review topics from database
  * @returns {Array} Under review topics with high similarity
  */
-function filterTier3UnderReview(combinedResults, underReviewTopics) {
+function filterTier3UnderReview(combinedResults, underReviewTopics, hasSbertResults = true) {
   const underReviewIds = new Set(underReviewTopics.map(t => t.id));
   
   const tier3 = combinedResults
     .filter(result => 
       underReviewIds.has(result.topic.id) && 
-      result.combinedScore >= TIER_FILTER_THRESHOLD &&
-      result.sbert >= TIER_FILTER_THRESHOLD
+      meetsTierThreshold(result, hasSbertResults)
     )
     .map(result => ({
       id: result.topic.id,
