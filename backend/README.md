@@ -105,7 +105,7 @@ backend/
 ├── .env.example                  # Environment template
 ├── jest.config.js               # Test runner configuration
 ├── package.json                 # Dependencies and scripts
-├── API-DOCUMENTATION.md         # Full API reference
+├── ../docs/api/backend-api.md   # Full API reference
 └── README.md                    # This file
 ```
 
@@ -319,7 +319,7 @@ curl -X POST http://localhost:3000/api/similarity/check \
 - `500 Internal Server Error` - Server error
 - `503 Service Unavailable` - Database connection lost
 
-[Full API Documentation →](API-DOCUMENTATION.md)
+[Full API Documentation →](../docs/api/backend-api.md)
 
 ---
 
@@ -641,10 +641,10 @@ npm test -- --no-coverage
 
 ## 📚 Related Documentation
 
-- [API Documentation](API-DOCUMENTATION.md) - Complete endpoint reference
-- [Architecture Guide](.github/copilot-instructions.md) - System design
-- [Code Quality Report](../CODE-QUALITY-AUDIT.md) - Code review findings
-- [Testing Guide](TESTING-GUIDE.md) - Testing best practices
+- [API Documentation](../docs/api/backend-api.md) - Complete endpoint reference
+- [Architecture Guide](../docs/architecture/overview.md) - System design
+- [Code Quality Report](../docs/archive/audits/code-quality-audit.md) - Code review findings
+- [Testing Guide](../docs/testing/backend.md) - Testing best practices
 
 ---
 
@@ -652,7 +652,7 @@ npm test -- --no-coverage
 
 | Link | Purpose |
 |------|---------|
-| [API Docs](API-DOCUMENTATION.md) | All endpoints & examples |
+| [API Docs](../docs/api/backend-api.md) | All endpoints & examples |
 | [Prisma Docs](https://www.prisma.io/docs) | Database ORM reference |
 | [Express Docs](https://expressjs.com/) | Web framework guide |
 | [Jest Docs](https://jestjs.io/) | Testing framework |

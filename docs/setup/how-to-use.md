@@ -369,9 +369,9 @@ http://localhost:5173
 Try submitting a topic and see how it works!
 
 If you have any questions, check:
-- **USER-GUIDE.md** - Complete manual
-- **QUICK-START.md** - Quick reference
-- **SYSTEM-DOCUMENTATION.md** - Technical details
+- **docs/setup/user-guide.md** - Complete manual
+- **docs/setup/quick-start.md** - Quick reference
+- **docs/archive/system-documentation.md** - Technical details
 
 ---
 

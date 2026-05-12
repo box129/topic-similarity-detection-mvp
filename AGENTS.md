@@ -9,7 +9,7 @@ Topic Similarity MVP is a research-topic similarity checker. It uses a Node/Expr
 - `backend/`: Express API, Prisma schema, similarity services, middleware, tests, and setup scripts.
 - `frontend/`: React/Vite UI for topic entry and tiered similarity results.
 - `sbert-service/`: FastAPI embedding service with 384-dimensional embeddings and fallback mode.
-- `docs/`: practical project documentation, including `docs/current-status.md` and API docs.
+- `docs/`: practical project documentation, including archived status notes in `docs/archive/status-reports/` and API docs in `docs/api/`.
 - Root Markdown files: historical guides, status reports, audits, and implementation notes; freshness needs verification.
 - Seed CSV files: sample/import data for topic records.
 
