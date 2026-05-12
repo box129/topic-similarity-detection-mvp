@@ -78,6 +78,7 @@ const ResultsDisplay = ({ results }) => {
 
   // Risk level configuration
   const riskConfig = RISK_CONFIGS[results.risk_level] || RISK_CONFIGS.LOW;
+  const recommendation = results.recommendation || riskConfig.recommendation;
 
   /**
    * Toggle details visibility for a match
@@ -273,7 +274,7 @@ const ResultsDisplay = ({ results }) => {
               {riskConfig.title}
             </h3>
             <p className={`mt-2 text-sm ${riskConfig.textColor}`} data-testid="risk-recommendation">
-              {riskConfig.recommendation}
+              {recommendation}
             </p>
             <p className={`mt-3 text-sm font-semibold ${riskConfig.textColor}`} data-testid="max-similarity">
               Maximum Similarity Score: {formatScore(results.max_similarity)}
@@ -386,6 +387,7 @@ ResultsDisplay.propTypes = {
   results: PropTypes.shape({
     risk_level: PropTypes.oneOf(['LOW', 'MEDIUM', 'HIGH']).isRequired,
     max_similarity: PropTypes.number.isRequired,
+    recommendation: PropTypes.string,
     tier1_matches: PropTypes.arrayOf(MATCH_SHAPE),
     tier2_matches: PropTypes.arrayOf(MATCH_SHAPE),
     tier3_matches: PropTypes.arrayOf(MATCH_SHAPE),

@@ -100,6 +100,7 @@ function App() {
         const mappedResults = isFypResponse ? {
           risk_level: fypData.overall_risk || 'LOW',
           max_similarity: fypData.max_similarity ?? 0,
+          recommendation: fypData.recommendation,
           sbert_available: response.data.status !== 'partial_success',
           tier1_matches: mapFypTier1Matches(fypData.tier1_historical),
           tier2_matches: mapFypTier2Matches(fypData.tier2_current),
