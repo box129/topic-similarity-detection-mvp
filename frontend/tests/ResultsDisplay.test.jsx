@@ -84,6 +84,21 @@ describe('ResultsDisplay Component - Redesigned', () => {
       expect(screen.getByTestId('risk-title')).toHaveTextContent('High Risk');
     });
 
+    it('displays backend-provided recommendation when present', () => {
+      render(
+        <ResultsDisplay
+          results={{
+            ...mockHighRiskData,
+            recommendation: 'High similarity detected. Coordinate with Dr. Ibrahim before proceeding.'
+          }}
+        />
+      );
+
+      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent(
+        'High similarity detected. Coordinate with Dr. Ibrahim before proceeding.'
+      );
+    });
+
     it('shows maximum similarity score in banner', () => {
       render(<ResultsDisplay results={mockLowRiskData} />);
       

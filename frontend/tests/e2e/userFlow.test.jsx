@@ -235,8 +235,8 @@ describe('End-to-End User Flow Tests', () => {
       expect(tfidf0).toHaveTextContent('82%');
       expect(sbert0).toHaveTextContent('80%');
 
-      // 11. Recommendation uses the current high-risk copy
-      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('Significant overlap detected');
+      // 11. Recommendation uses backend-provided API copy
+      expect(screen.getByTestId('risk-recommendation')).toHaveTextContent('High similarity detected. Review the flagged topics.');
     });
 
     it('displays all expected details for duplicate detection', async () => {
