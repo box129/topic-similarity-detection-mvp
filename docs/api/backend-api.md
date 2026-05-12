@@ -245,7 +245,7 @@ All errors follow this standardized format:
 }
 ```
 
-For a complete list of error codes and handling guidelines, see [ERROR-CODE-REFERENCE.md](./ERROR-CODE-REFERENCE.md).
+For a complete list of error codes and handling guidelines, see [errors.md](errors.md).
 
 ---
 

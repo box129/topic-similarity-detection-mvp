@@ -1,6 +1,6 @@
 # Code vs Rules Gap Analysis
 
-This compares current implementation behavior against `docs/business-rules.md` and `docs/source-of-truth.md`.
+This compares current implementation behavior against `docs/decisions/business-rules.md` and `docs/decisions/source-of-truth.md`.
 
 ## Areas Where Code Appears Aligned
 

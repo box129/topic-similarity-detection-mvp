@@ -6,7 +6,7 @@ Use small, focused branches for each task. Name branches by purpose, for example
 
 ## Starting A Task
 
-Before changing files, inspect the relevant area of the repo and read `docs/current-status.md` and `AGENTS.md`. Check the worktree for existing changes so current work is not overwritten.
+Before changing files, inspect the relevant area of the repo and read `docs/archive/status-reports/current-status.md` and `AGENTS.md`. Check the worktree for existing changes so current work is not overwritten.
 
 ## Small Focused Changes
 

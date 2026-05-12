@@ -550,8 +550,8 @@ lsof -i :5173 | grep node | awk '{print $2}' | xargs kill -9
 
 - [Main README](../README.md) - Project overview
 - [Backend Setup](../backend/README.md) - Backend configuration
-- [API Documentation](../backend/API-DOCUMENTATION.md) - API reference
-- [Architecture Guide](../.github/copilot-instructions.md) - System design
+- [API Documentation](../docs/api/backend-api.md) - API reference
+- [Architecture Guide](../docs/architecture/overview.md) - System design
 
 ---
 

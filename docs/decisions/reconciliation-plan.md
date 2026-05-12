@@ -1,6 +1,6 @@
 # Reconciliation Plan
 
-This plan reconciles the current code with `docs/source-of-truth.md`, `docs/business-rules.md`, and `docs/code-vs-rules-gap.md`. Keep changes small and focused.
+This plan reconciles the current code with `docs/decisions/source-of-truth.md`, `docs/decisions/business-rules.md`, and `docs/decisions/code-vs-rules-gap.md`. Keep changes small and focused.
 
 ## Top Issues To Fix First
 

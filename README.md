@@ -153,9 +153,9 @@ npm run test:watch      # Watch mode
 
 - **[Backend Setup Guide](backend/README.md)** - Detailed backend configuration
 - **[Frontend Setup Guide](frontend/README.md)** - Frontend development guide
-- **[API Documentation](backend/API-DOCUMENTATION.md)** - Complete endpoint reference
-- **[Architecture Overview](.github/copilot-instructions.md)** - System design & patterns
-- **[Code Quality Report](CODE-QUALITY-AUDIT.md)** - Code review findings
+- **[API Documentation](docs/api/backend-api.md)** - Complete endpoint reference
+- **[Architecture Overview](docs/architecture/overview.md)** - System design & patterns
+- **[Code Quality Report](docs/archive/audits/code-quality-audit.md)** - Code review findings
 
 ---
 
@@ -229,7 +229,7 @@ Content-Type: application/json
 }
 ```
 
-[Full API Documentation →](backend/API-DOCUMENTATION.md)
+[Full API Documentation →](docs/api/backend-api.md)
 
 ---
 
@@ -427,9 +427,9 @@ MIT License - see LICENSE file
 
 | Resource | Link |
 |----------|------|
-| API Docs | [backend/API-DOCUMENTATION.md](backend/API-DOCUMENTATION.md) |
+| API Docs | [docs/api/backend-api.md](docs/api/backend-api.md) |
 | Backend Setup | [backend/README.md](backend/README.md) |
 | Frontend Setup | [frontend/README.md](frontend/README.md) |
-| Architecture | [.github/copilot-instructions.md](.github/copilot-instructions.md) |
-| Code Audit | [CODE-QUALITY-AUDIT.md](CODE-QUALITY-AUDIT.md) |
-| Test Results | [backend/COMPLETE-TEST-SUITE-SUMMARY.md](backend/COMPLETE-TEST-SUITE-SUMMARY.md) |
+| Architecture | [docs/architecture/overview.md](docs/architecture/overview.md) |
+| Code Audit | [docs/archive/audits/code-quality-audit.md](docs/archive/audits/code-quality-audit.md) |
+| Test Results | [docs/archive/backend/complete-test-suite-summary.md](docs/archive/backend/complete-test-suite-summary.md) |

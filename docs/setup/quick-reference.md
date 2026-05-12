@@ -164,7 +164,7 @@ Stop-Process -Id <PID> -Force
 | `backend/src/services/sbert.service.js` | SBERT integration |
 | `sbert-service/app.py` | SBERT microservice |
 | `frontend/src/pages/SubmitTopic.jsx` | Form component |
-| `HOW-TO-USE.md` | User documentation |
+| `docs/setup/how-to-use.md` | User documentation |
 
 ---
 
@@ -213,12 +213,12 @@ Get-Process python | Stop-Process -Force
 ## 📚 Documentation Files
 
 - **README.md** - Project overview
-- **HOW-TO-USE.md** - User guide with examples
-- **API-DOCUMENTATION.md** - API specification
-- **SYSTEM-VERIFICATION-REPORT.md** - Detailed test results
-- **SESSION-SUMMARY.md** - Development notes
-- **BACKEND-STARTUP-GUIDE.md** - Setup instructions
-- **USER-GUIDE.md** - End-user documentation
+- **docs/setup/how-to-use.md** - User guide with examples
+- **docs/api/backend-api.md** - API specification
+- **docs/archive/status-reports/system-verification-report.md** - Detailed test results
+- **docs/archive/status-reports/session-summary.md** - Development notes
+- **docs/setup/backend-startup-guide.md** - Setup instructions
+- **docs/setup/user-guide.md** - End-user documentation
 
 ---
 
