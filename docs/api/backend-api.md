@@ -1,501 +1,275 @@
 # Topic Similarity API Documentation
 
+This is the current living API reference for the implemented backend contract.
+
 ## Overview
 
-The Topic Similarity API provides endpoints for checking similarity between a new topic and existing topics in the database using three different algorithms: Jaccard similarity, TF-IDF, and SBERT (Sentence-BERT).
+The Topic Similarity API checks a submitted research topic against historical, current-session, and under-review topic records. The backend runs Jaccard, TF-IDF, and SBERT when available. If SBERT is unavailable, the endpoint returns a partial-success response using lexical similarity only.
 
 **Base URL:** `http://localhost:3000`  
-**API Version:** v1.0.0
-
----
+**Content-Type:** `application/json`
 
 ## Endpoints
 
-### 1. Health Check
-
-Check if the API server is running.
+### Health Check
 
 **Endpoint:** `GET /health`
 
 **Response:**
+
 ```json
 {
   "status": "OK",
   "message": "Server is running",
   "environment": "development",
-  "apiVersion": "1.0.0"
+  "apiVersion": "v1"
 }
 ```
 
-**Status Codes:**
-- `200 OK` - Server is healthy
-
----
-
-### 2. Check Topic Similarity
-
-Check similarity between a new topic and existing topics in the database.
+### Topic Similarity Check
 
 **Endpoint:** `POST /api/similarity/check`
 
-**Request Headers:**
-```
-Content-Type: application/json
-```
+Architecture alias: `POST /api/v1/check-similarity`
 
 **Request Body:**
+
 ```json
 {
-  "topic": "Machine Learning Applications in Healthcare",
-  "keywords": "neural networks, medical diagnosis, AI"
+  "topic": "Knowledge of malaria prevention among children under five",
+  "keywords": "malaria, prevention, children"
 }
 ```
 
-**Parameters:**
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `topic` | string | Yes | Must be a non-empty string. |
+| `keywords` | string | No | Optional; currently appended to the comparison text. |
 
-| Parameter | Type   | Required | Description                                    |
-|-----------|--------|----------|------------------------------------------------|
-| topic     | string | Yes      | The topic title to check for similarity        |
-| keywords  | string | No       | Optional keywords associated with the topic    |
+## Normal Success Response
 
-**Response:**
+Normal success uses `status: "success"` and a top-level `data` object.
+
 ```json
 {
-  "topic": "Machine Learning Applications in Healthcare",
-  "keywords": "neural networks, medical diagnosis, AI",
-  "results": {
+  "status": "success",
+  "data": {
+    "input_topic": "Knowledge of malaria prevention among children under five",
+    "word_count": 8,
+    "char_count": 60,
+    "overall_risk": "HIGH",
+    "max_similarity": 88,
     "tier1_historical": [
       {
-        "id": 123,
-        "title": "Deep Learning for Medical Image Analysis",
-        "keywords": "CNN, medical imaging, diagnosis",
-        "sessionYear": "2023",
-        "supervisorName": "Dr. John Smith",
-        "category": "Artificial Intelligence",
-        "scores": {
-          "jaccard": 0.756,
-          "tfidf": 0.823,
-          "sbert": 0.891,
-          "combined": 0.834
-        },
-        "matchedKeywords": ["learn", "medic", "neural"],
-        "matchedTerms": ["learning", "medical", "neural", "networks"]
+        "id": 45,
+        "title": "Malaria prevention in children",
+        "year": "2022/2023",
+        "supervisor": "Dr. Adeyemi",
+        "category": "Infectious Diseases",
+        "jaccard": 65.3,
+        "tfidf": 72.1,
+        "sbert": 84.2,
+        "matched_keywords": ["malaria", "prevention", "children"]
       }
     ],
-    "tier2_current_session": [
+    "tier2_current": [
       {
-        "id": 456,
-        "title": "AI in Healthcare Diagnostics",
-        "keywords": "machine learning, diagnosis",
-        "sessionYear": "2024",
-        "supervisorName": "Dr. Jane Doe",
-        "category": "Artificial Intelligence",
-        "studentId": "S12345",
-        "scores": {
-          "jaccard": 0.678,
-          "tfidf": 0.712,
-          "sbert": 0.845,
-          "combined": 0.756
-        },
-        "matchedKeywords": ["healthcar", "diagnos"],
-        "matchedTerms": ["healthcare", "diagnosis", "AI"]
+        "id": 57,
+        "title": "Malaria prevention knowledge among caregivers",
+        "approved_date": "2026-01-15T10:30:00.000Z",
+        "supervisor": "Dr. Balogun",
+        "student_id": "STU-2024-057",
+        "jaccard": 48.5,
+        "tfidf": 59.2,
+        "sbert": 76.8
       }
     ],
-    "tier3_under_review": []
-  },
-  "overallRisk": "HIGH",
-  "algorithmStatus": {
-    "jaccard": true,
-    "tfidf": true,
-    "sbert": true
-  },
-  "processingTime": 1234
-}
-```
-
-**Response Fields:**
-
-| Field                          | Type    | Description                                                      |
-|--------------------------------|---------|------------------------------------------------------------------|
-| topic                          | string  | The input topic title                                            |
-| keywords                       | string  | The input keywords (null if not provided)                        |
-| results                        | object  | Contains three tiers of similar topics                           |
-| results.tier1_historical       | array   | Top 5 most similar historical topics                             |
-| results.tier2_current_session  | array   | Current session topics with combined score ≥ 0.60                |
-| results.tier3_under_review     | array   | Under review topics (last 48h) with combined score ≥ 0.60        |
-| overallRisk                    | string  | Risk level: "LOW", "MEDIUM", or "HIGH"                           |
-| algorithmStatus                | object  | Status of each algorithm (true if successful)                    |
-| processingTime                 | number  | Total processing time in milliseconds                            |
-
-**Topic Object Fields:**
-
-| Field            | Type   | Description                                    |
-|------------------|--------|------------------------------------------------|
-| id               | number | Topic ID                                       |
-| title            | string | Topic title                                    |
-| keywords         | string | Topic keywords                                 |
-| sessionYear      | string | Academic session year                          |
-| supervisorName   | string | Supervisor's name                              |
-| category         | string | Topic category                                 |
-| studentId        | string | Student ID (tier 2 only)                       |
-| reviewingLecturer| string | Reviewing lecturer (tier 3 only)               |
-| reviewStartedAt  | string | Review start timestamp (tier 3 only)           |
-| scores           | object | Similarity scores from all algorithms          |
-| matchedKeywords  | array  | Keywords matched by Jaccard algorithm          |
-| matchedTerms     | array  | Terms matched by TF-IDF algorithm              |
-
-**Similarity Scores:**
-
-| Score    | Range | Description                                           |
-|----------|-------|-------------------------------------------------------|
-| jaccard  | 0-1   | Jaccard similarity (set-based overlap)                |
-| tfidf    | 0-1   | TF-IDF cosine similarity (term frequency)             |
-| sbert    | 0-1   | SBERT cosine similarity (semantic embeddings)         |
-| combined | 0-1   | Weighted average (30% Jaccard, 30% TF-IDF, 40% SBERT) |
-
-**Risk Levels:**
-
-| Risk   | Conditions                                                                  |
-|--------|-----------------------------------------------------------------------------|
-| HIGH   | - Any tier 2 or tier 3 matches exist, OR                                   |
-|        | - Tier 1 top match has combined score ≥ 0.80                               |
-| MEDIUM | - Tier 1 top match has combined score ≥ 0.60 (and < 0.80)                  |
-| LOW    | - All other cases                                                           |
-
-**Status Codes:**
-- `200 OK` - Similarity check completed successfully
-- `400 Bad Request` - Invalid input (missing or empty topic)
-- `429 Too Many Requests` - Rate limit exceeded
-- `500 Internal Server Error` - Server error during processing
-
-**Error Response Format:**
-
-All errors follow this standardized format:
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": {...},  // Optional, only for validation errors
-    "stack": "..."     // Only in development mode
+    "tier3_under_review": [
+      {
+        "id": 88,
+        "title": "Malaria prevention practices among mothers",
+        "reviewing_lecturer": "Dr. Ibrahim",
+        "review_started_at": "2026-01-31T14:45:00.000Z",
+        "minutes_ago": 30,
+        "jaccard": 61.4,
+        "tfidf": 68.2,
+        "sbert": 88.7
+      }
+    ],
+    "recommendation": "High similarity detected. Coordinate with Dr. Ibrahim before proceeding to avoid duplicate approvals."
   }
 }
 ```
 
-**Example Error Responses:**
+### Normal Data Fields
 
-**Validation Error (400):**
+| Field | Type | Notes |
+|-------|------|-------|
+| `input_topic` | string | Submitted topic. |
+| `word_count` | number | Word count of submitted topic. |
+| `char_count` | number | Character count of submitted topic. |
+| `overall_risk` | string | `LOW`, `MEDIUM`, or `HIGH`. |
+| `max_similarity` | number | Highest SBERT score across returned tiers, exposed as `0-100`. |
+| `tier1_historical` | array | Top 5 historical matches. |
+| `tier2_current` | array | Current-session matches. |
+| `tier3_under_review` | array | Under-review matches from the existing 48-hour query window. |
+| `recommendation` | string | Backend-generated recommendation text. |
+
+### Public Score Scale
+
+Returned similarity scores are percentage-style values on a `0-100` scale. Normal success exposes `jaccard`, `tfidf`, and `sbert` separately. It does not expose a public `combined` score.
+
+### Risk And Max Similarity
+
+For normal success:
+
+| Risk | Current implemented rule |
+|------|--------------------------|
+| `LOW` | Highest SBERT score is below `50`. |
+| `MEDIUM` | Highest SBERT score is `50` through `69`. |
+| `HIGH` | Highest SBERT score is `70` or higher. |
+
+`max_similarity` is the highest SBERT score across returned Tier 1, Tier 2, and Tier 3 results.
+
+### Tier Fields
+
+**Tier 1 Historical**
+
+| Field | Type |
+|-------|------|
+| `id` | number |
+| `title` | string |
+| `year` | string |
+| `supervisor` | string |
+| `category` | string or null |
+| `jaccard` | number |
+| `tfidf` | number |
+| `sbert` | number |
+| `matched_keywords` | array |
+
+**Tier 2 Current**
+
+| Field | Type |
+|-------|------|
+| `id` | number |
+| `title` | string |
+| `approved_date` | string or null |
+| `supervisor` | string |
+| `student_id` | string or null |
+| `jaccard` | number |
+| `tfidf` | number |
+| `sbert` | number |
+
+**Tier 3 Under Review**
+
+| Field | Type |
+|-------|------|
+| `id` | number |
+| `title` | string |
+| `reviewing_lecturer` | string or null |
+| `review_started_at` | string or null |
+| `minutes_ago` | number or null |
+| `jaccard` | number |
+| `tfidf` | number |
+| `sbert` | number |
+
+## No-Topics Success Response
+
+When the database query succeeds but there are no topic records to compare, the endpoint still returns success:
+
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Validation failed",
-    "details": {
-      "topic": "Topic is required and cannot be empty"
-    }
+  "status": "success",
+  "data": {
+    "input_topic": "Machine Learning Applications",
+    "word_count": 3,
+    "char_count": 29,
+    "overall_risk": "LOW",
+    "max_similarity": 0,
+    "tier1_historical": [],
+    "tier2_current": [],
+    "tier3_under_review": [],
+    "recommendation": "Topic appears unique. Proceed with approval."
   }
 }
 ```
 
-**Missing Topic (400):**
+## Partial Success / SBERT Degraded Response
+
+When SBERT is unavailable, the endpoint returns `partial_success`, keeps the top-level warning message, and exposes lexical scores only. Returned match objects set `sbert` to `null`.
+
 ```json
 {
-  "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Topic is required and must be a non-empty string"
-  }
-}
-```
-
-**Rate Limit Exceeded (429):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "RATE_LIMIT_EXCEEDED",
-    "message": "Too many requests, please try again later"
-  }
-}
-```
-
-**Database Error (500 - Production):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "DATABASE_ERROR",
-    "message": "A database error occurred. Please try again later."
-  }
-}
-```
-
-**Internal Server Error (500 - Development):**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INTERNAL_SERVER_ERROR",
-    "message": "TypeError: Cannot read property 'x' of undefined",
-    "stack": "TypeError: Cannot read property 'x' of undefined\n    at ..."
-  }
-}
-```
-
-For a complete list of error codes and handling guidelines, see [errors.md](errors.md).
-
----
-
-## Algorithm Details
-
-### 1. Jaccard Similarity
-
-**Description:** Measures overlap between two sets of words.
-
-**Formula:** `|A ∩ B| / |A ∪ B|`
-
-**Process:**
-1. Tokenize and stem both texts
-2. Create sets of unique stemmed tokens
-3. Calculate intersection and union
-4. Return ratio
-
-**Weight in Combined Score:** 30%
-
-**Example:**
-- Text 1: "machine learning algorithms"
-- Text 2: "deep learning and machine learning"
-- Stemmed tokens 1: {machin, learn, algorithm}
-- Stemmed tokens 2: {deep, learn, machin}
-- Intersection: {machin, learn}
-- Union: {machin, learn, algorithm, deep}
-- Score: 2/4 = 0.500
-
-### 2. TF-IDF Similarity
-
-**Description:** Measures similarity based on term frequency and inverse document frequency.
-
-**Process:**
-1. Calculate TF-IDF vectors for query and all topics
-2. Compute cosine similarity between vectors
-3. Return similarity score
-
-**Weight in Combined Score:** 30%
-
-**Advantages:**
-- Considers term importance across documents
-- Reduces weight of common words
-- Better for longer texts
-
-### 3. SBERT (Sentence-BERT)
-
-**Description:** Uses pre-trained neural network to generate semantic embeddings.
-
-**Model:** `sentence-transformers/all-MiniLM-L6-v2`
-
-**Process:**
-1. Generate 384-dimensional embedding for query text
-2. Use pre-computed embeddings from database (if available)
-3. Calculate cosine similarity between embeddings
-4. Return similarity score
-
-**Weight in Combined Score:** 40%
-
-**Advantages:**
-- Captures semantic meaning
-- Works well with synonyms and paraphrases
-- Language-agnostic to some extent
-
-**Graceful Degradation:**
-If SBERT service is unavailable, the system continues with Jaccard and TF-IDF only, adjusting weights to 50% each.
-
----
-
-## Data Sources
-
-### Historical Topics
-- **Table:** `historical_topics`
-- **Filter:** All records
-- **Purpose:** Reference past approved topics
-
-### Current Session Topics
-- **Table:** `current_session_topics`
-- **Filter:** All records
-- **Purpose:** Check against currently approved topics
-
-### Under Review Topics
-- **Table:** `under_review_topics`
-- **Filter:** Last 48 hours only (`review_started_at > NOW() - INTERVAL '48 hours'`)
-- **Purpose:** Check against topics currently being reviewed
-
----
-
-## Usage Examples
-
-### Example 1: Basic Topic Check
-
-**Request:**
-```bash
-curl -X POST http://localhost:3000/api/similarity/check \
-  -H "Content-Type: application/json" \
-  -d '{
-    "topic": "Blockchain Technology in Supply Chain Management"
-  }'
-```
-
-**Response:**
-```json
-{
-  "topic": "Blockchain Technology in Supply Chain Management",
-  "keywords": null,
-  "results": {
+  "status": "partial_success",
+  "message": "SBERT semantic analysis unavailable. Showing lexical similarity only (Jaccard, TF-IDF).",
+  "data": {
+    "input_topic": "Knowledge of malaria prevention among children under five",
+    "word_count": 8,
+    "char_count": 60,
+    "overall_risk": "MEDIUM",
+    "max_similarity": 72.1,
     "tier1_historical": [
       {
-        "id": 789,
-        "title": "Distributed Ledger Technology for Logistics",
-        "scores": {
-          "combined": 0.723
-        }
+        "id": 45,
+        "title": "Malaria prevention in children",
+        "year": "2022/2023",
+        "supervisor": "Dr. Adeyemi",
+        "category": "Infectious Diseases",
+        "jaccard": 65.3,
+        "tfidf": 72.1,
+        "sbert": null,
+        "matched_keywords": ["malaria", "prevention"]
       }
     ],
-    "tier2_current_session": [],
+    "tier2_current": [],
     "tier3_under_review": []
-  },
-  "overallRisk": "MEDIUM",
-  "processingTime": 856
+  }
 }
 ```
 
-### Example 2: Topic with Keywords
+For partial success, `max_similarity` and `overall_risk` are based on the highest lexical score, using `max(jaccard, tfidf)` across returned tiers.
 
-**Request:**
-```bash
-curl -X POST http://localhost:3000/api/similarity/check \
-  -H "Content-Type: application/json" \
-  -d '{
-    "topic": "Natural Language Processing for Sentiment Analysis",
-    "keywords": "BERT, transformers, text classification"
-  }'
-```
+## Error Responses
 
-### Example 3: Using Postman
+Reconciled error responses use this shape:
 
-1. Set method to `POST`
-2. Enter URL: `http://localhost:3000/api/similarity/check`
-3. Go to Headers tab, add:
-   - Key: `Content-Type`
-   - Value: `application/json`
-4. Go to Body tab, select `raw` and `JSON`
-5. Enter request body:
 ```json
 {
-  "topic": "Your topic here",
-  "keywords": "optional keywords"
+  "status": "error",
+  "message": "Human-readable message",
+  "details": {
+    "error_code": "ERROR_CODE"
+  }
 }
 ```
-6. Click Send
 
----
+See [errors.md](errors.md) for the current reconciled error paths and paths that still need verification.
 
 ## Rate Limiting
 
-**Window:** 15 minutes  
-**Max Requests:** 100 per window
-
-If rate limit is exceeded:
-```json
-{
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded. Please try again later."
-}
-```
-
----
-
-## CORS Configuration
-
-**Allowed Origins:** `*` (all origins in development)  
-**Allowed Methods:** `GET, POST, PUT, DELETE, OPTIONS`  
-**Allowed Headers:** `Content-Type, Authorization`
-
----
-
-## Environment Variables
-
-| Variable            | Default                    | Description                          |
-|---------------------|----------------------------|--------------------------------------|
-| PORT                | 3000                       | Server port                          |
-| DATABASE_URL        | (required)                 | PostgreSQL connection string         |
-| SBERT_SERVICE_URL   | http://localhost:8000      | SBERT microservice URL               |
-| SBERT_TIMEOUT       | 5000                       | SBERT request timeout (ms)           |
-| LOG_LEVEL           | info                       | Logging level                        |
-| NODE_ENV            | development                | Environment (development/production) |
-
----
-
-## Error Handling
-
-All errors follow this format:
+Current documented response body for rate limiting:
 
 ```json
 {
-  "error": "Error Type",
-  "message": "Detailed error message",
-  "stack": "Stack trace (development only)"
+  "status": "error",
+  "message": "Rate limit exceeded. Please try again in 5 minutes.",
+  "details": {
+    "retry_after": 300,
+    "limit": "100 requests per hour"
+  }
 }
 ```
 
-**Common Errors:**
+The response includes:
 
-| Status | Error                  | Cause                                    |
-|--------|------------------------|------------------------------------------|
-| 400    | Bad Request            | Invalid input parameters                 |
-| 404    | Not Found              | Route does not exist                     |
-| 500    | Internal Server Error  | Database error, algorithm failure, etc.  |
-| 503    | Service Unavailable    | SBERT service down (with graceful degradation) |
-
----
-
-## Performance Considerations
-
-**Typical Response Times:**
-- With SBERT: 1-3 seconds (first request may take longer due to model loading)
-- Without SBERT: 200-500 ms
-
-**Optimization Tips:**
-1. Pre-compute embeddings for all topics in database
-2. Use database indexes on frequently queried fields
-3. Cache frequently checked topics
-4. Run SBERT service on GPU for faster inference
-
----
-
-## Testing
-
-Run integration tests:
-```bash
-npm test src/controllers/similarity.controller.test.js
+```http
+Retry-After: 300
 ```
 
-Run all tests:
-```bash
-npm test
-```
+The exact enforcement window should be checked against environment configuration before changing rate-limit policy.
 
----
+## Notes
 
-## Support
-
-For issues or questions:
-- Check logs in `logs/` directory
-- Review error messages in response
-- Ensure SBERT service is running
-- Verify database connection
-
----
-
-**Last Updated:** December 2024  
-**API Version:** 1.0.0
+- Category is currently returned as metadata and is not documented as a retrieval filter.
+- Same-lecturer Tier 3 suppression is blocked until trusted lecturer identity is available in the request/auth context.
+- Some internal combined-score calculations still exist in code, but they are not part of the current public normal-success API contract.

@@ -1,5 +1,9 @@
 # API Documentation 🔌
 
+> **Note:** This document contains older/legacy API material. Use
+> [backend-api.md](backend-api.md) as the current primary API reference for
+> the implemented and tested backend contract.
+
 Complete reference for the Topic Similarity API endpoints.
 
 **Base URL:** `http://localhost:3000`  
