@@ -82,6 +82,11 @@ function buildRecommendation(overallRisk, tier3 = []) {
   }
 
   if (overallRisk === 'MEDIUM') {
+    const reviewingLecturer = tier3[0]?.reviewingLecturer;
+    if (reviewingLecturer) {
+      return `Moderate similarity detected. Review flagged topics and coordinate with ${reviewingLecturer} before deciding.`;
+    }
+
     return 'Moderate similarity detected. Review flagged topics before deciding.';
   }
 
