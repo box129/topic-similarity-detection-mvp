@@ -1,0 +1,95 @@
+# Topic Import Workflow
+
+## Purpose
+
+Import support exists because departmental research topic records are mostly spreadsheet-based and may be incomplete. Lecturer interview findings show that topic titles are usually available, but keywords, population, location, and study focus may be missing or inconsistent.
+
+The current import foundation is designed to tolerate incomplete records safely before any database persistence, API upload flow, or frontend import UI is added.
+
+## Current Flow
+
+```text
+.xlsx file -> worksheet rows -> plain row objects -> normalizer -> records + report
+```
+
+The import flow currently has two backend service layers:
+
+- `backend/src/services/topicImportFile.service.js`
+  - Reads `.xlsx` files with `exceljs`.
+  - Uses the first worksheet by default.
+  - Converts worksheet rows into plain JavaScript objects using the header row.
+  - Passes parsed rows into `normalizeTopicImportRows`.
+
+- `backend/src/services/topicImport.service.js`
+  - Normalizes plain row objects into topic import records.
+  - Handles flexible title aliases and optional context fields.
+  - Preserves the original row as `raw_record`.
+  - Returns normalized records plus an import report.
+
+## Normalized Record Fields
+
+Each accepted record can include:
+
+- `title`
+- `keywords`
+- `population`
+- `location`
+- `study_focus`
+- `lifecycle_bucket`
+- `raw_record`
+- `warnings`
+
+`title` is required. Rows without a usable title are skipped and counted in the report.
+
+`keywords` may be provided as a comma-separated string or an array. Missing keywords are accepted.
+
+`population`, `location`, and `study_focus` are optional for now. Missing values do not block import, but they add warnings because lecturers consider these fields important when judging topic similarity.
+
+## Lifecycle Buckets
+
+Supported lifecycle buckets are:
+
+- `historical`
+- `current_session`
+- `under_review`
+
+If no lifecycle bucket is provided, the normalizer defaults to `historical`.
+
+Rows may contain `status`, but it is only mapped to `lifecycle_bucket` when it clearly matches one of the supported lifecycle buckets. Otherwise, the status value remains in `raw_record` and a warning is added.
+
+## Import Report
+
+The import report includes:
+
+- `total_rows`
+- `accepted_rows`
+- `skipped_rows`
+- `missing_title_rows`
+- `incomplete_context_rows`
+- `duplicate_title_rows`
+
+Duplicate titles are detected within the same import batch using a case-insensitive trimmed title. The first matching row is accepted, and later duplicate-title rows are skipped.
+
+Missing-title rows increment both `skipped_rows` and `missing_title_rows`.
+
+Duplicate-title rows increment both `skipped_rows` and `duplicate_title_rows`.
+
+`incomplete_context_rows` counts accepted rows missing at least one of `population`, `location`, or `study_focus`.
+
+## Current Limitations
+
+- No database writes yet.
+- These fields are not yet persisted in the Prisma schema/import database workflow.
+- No upload or admin import API endpoint yet.
+- No frontend import UI yet.
+- No similarity scoring integration yet.
+- CSV import remains separate from this `.xlsx` import workflow.
+
+## Follow-Up Work
+
+- Add schema fields for context and import metadata.
+- Add database lifecycle persistence for historical, current-session, and under-review topics.
+- Add an API or admin import endpoint.
+- Add import validation UI and import result display.
+- Test the workflow with real sample departmental records.
+- Add evaluation cases for incomplete and spreadsheet-imported records.
