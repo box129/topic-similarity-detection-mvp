@@ -18,6 +18,14 @@ model HistoricalTopic {
   sessionYear    String    @map("session_year")
   supervisorName String    @map("supervisor_name")
   category       String?
+  population     String?   @db.Text
+  location       String?   @db.Text
+  studyFocus     String?   @map("study_focus") @db.Text
+  rawRecord      Json?     @map("raw_record")
+  importWarnings Json?     @map("import_warnings")
+  sourceType     String?   @map("source_type")
+  sourceFilename String?   @map("source_filename") @db.Text
+  importBatchId  String?   @map("import_batch_id")
   embedding      Json?
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
@@ -25,6 +33,7 @@ model HistoricalTopic {
   @@index([category])
   @@index([sessionYear])
   @@index([createdAt])
+  @@index([importBatchId])
   @@map("historical_topics")
 }
 
@@ -35,6 +44,14 @@ model CurrentSessionTopic {
   sessionYear    String    @map("session_year")
   supervisorName String    @map("supervisor_name")
   category       String?
+  population     String?   @db.Text
+  location       String?   @db.Text
+  studyFocus     String?   @map("study_focus") @db.Text
+  rawRecord      Json?     @map("raw_record")
+  importWarnings Json?     @map("import_warnings")
+  sourceType     String?   @map("source_type")
+  sourceFilename String?   @map("source_filename") @db.Text
+  importBatchId  String?   @map("import_batch_id")
   embedding      Json?
   approvedDate   DateTime? @map("approved_date")
   studentId      String?   @map("student_id")
@@ -44,6 +61,7 @@ model CurrentSessionTopic {
   @@index([category])
   @@index([sessionYear])
   @@index([createdAt])
+  @@index([importBatchId])
   @@map("current_session_topics")
 }
 
@@ -54,6 +72,14 @@ model UnderReviewTopic {
   sessionYear       String    @map("session_year")
   supervisorName    String    @map("supervisor_name")
   category          String?
+  population        String?   @db.Text
+  location          String?   @db.Text
+  studyFocus        String?   @map("study_focus") @db.Text
+  rawRecord         Json?     @map("raw_record")
+  importWarnings    Json?     @map("import_warnings")
+  sourceType        String?   @map("source_type")
+  sourceFilename    String?   @map("source_filename") @db.Text
+  importBatchId     String?   @map("import_batch_id")
   embedding         Json?
   reviewStartedAt   DateTime? @map("review_started_at")
   reviewingLecturer String?   @map("reviewing_lecturer")
@@ -64,5 +90,6 @@ model UnderReviewTopic {
   @@index([sessionYear])
   @@index([createdAt])
   @@index([reviewStartedAt])
+  @@index([importBatchId])
   @@map("under_review_topics")
 }
