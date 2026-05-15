@@ -79,7 +79,7 @@ Duplicate-title rows increment both `skipped_rows` and `duplicate_title_rows`.
 ## Current Limitations
 
 - No database writes yet.
-- These fields are not yet persisted in the Prisma schema/import database workflow.
+- Prisma schema fields are prepared for import context and metadata, but the import workflow does not write them to the database yet.
 - No upload or admin import API endpoint yet.
 - No frontend import UI yet.
 - No similarity scoring integration yet.
@@ -87,7 +87,7 @@ Duplicate-title rows increment both `skipped_rows` and `duplicate_title_rows`.
 
 ## Follow-Up Work
 
-- Add schema fields for context and import metadata.
+- Persist imported context and metadata fields through the database import workflow.
 - Add database lifecycle persistence for historical, current-session, and under-review topics.
 - Add an API or admin import endpoint.
 - Add import validation UI and import result display.
