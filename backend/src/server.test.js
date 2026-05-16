@@ -92,6 +92,43 @@ describe('Server Integration Tests', () => {
     });
   });
 
+  describe('Import API Routes', () => {
+    test('should expose v1 preview import alias route', async () => {
+      const response = await request(app)
+        .post('/api/v1/import/topics/preview')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body.details).toHaveProperty('error_code', 'MISSING_FILE');
+    });
+
+    test('should expose v1 commit import alias route', async () => {
+      const response = await request(app)
+        .post('/api/v1/import/topics/commit')
+        .expect(400);
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body.details).toHaveProperty('error_code', 'MISSING_FILE');
+    });
+
+    test('should reject oversized import uploads with FYP-style error response', async () => {
+      const oversizedFile = Buffer.alloc((5 * 1024 * 1024) + 1);
+
+      const response = await request(app)
+        .post('/api/import/topics/preview')
+        .attach('file', oversizedFile, {
+          filename: 'large.xlsx',
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        .expect(413);
+
+      expect(response.body).toHaveProperty('status', 'error');
+      expect(response.body).toHaveProperty('message', 'Import file is too large.');
+      expect(response.body.details).toHaveProperty('error_code', 'FILE_TOO_LARGE');
+      expect(response.body.details).toHaveProperty('field', 'file');
+    });
+  });
+
   describe('404 Handler', () => {
     test('should return 404 for non-existent routes', async () => {
       const response = await request(app)

@@ -7,7 +7,8 @@ This is the current living API reference for the implemented backend contract.
 The Topic Similarity API checks a submitted research topic against historical, current-session, and under-review topic records. The backend runs Jaccard, TF-IDF, and SBERT when available. If SBERT is unavailable, the endpoint returns a partial-success response using lexical similarity only.
 
 **Base URL:** `http://localhost:3000`  
-**Content-Type:** `application/json`
+**Default Content-Type:** `application/json`  
+**Import endpoints:** `multipart/form-data`
 
 ## Endpoints
 
@@ -228,6 +229,112 @@ When SBERT is unavailable, the endpoint returns `partial_success`, keeps the top
 ```
 
 For partial success, `max_similarity` and `overall_risk` are based on the highest lexical score, using `max(jaccard, tfidf)` across returned tiers.
+
+## Topic Import Preview
+
+**Endpoint:** `POST /api/import/topics/preview`
+
+Architecture alias: `POST /api/v1/import/topics/preview`
+
+**Content-Type:** `multipart/form-data`
+
+Preview parses and normalizes an uploaded `.xlsx` file without writing records to the database.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `file` | file | Yes | Only `.xlsx` files are supported. Maximum upload size is 5MB. |
+| `sheetName` | string | No | Optional worksheet name. Defaults to the first worksheet. |
+
+**Success Response:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "mode": "preview",
+    "metadata": {
+      "sheet_name": "Topics",
+      "total_parsed_rows": 10,
+      "warnings": []
+    },
+    "records": [],
+    "import_report": {
+      "total_rows": 10,
+      "accepted_rows": 8,
+      "skipped_rows": 2,
+      "missing_title_rows": 1,
+      "incomplete_context_rows": 4,
+      "duplicate_title_rows": 1
+    }
+  }
+}
+```
+
+## Topic Import Commit
+
+**Endpoint:** `POST /api/import/topics/commit`
+
+Architecture alias: `POST /api/v1/import/topics/commit`
+
+**Content-Type:** `multipart/form-data`
+
+Commit parses, normalizes, and persists accepted `.xlsx` records by lifecycle bucket. It does not generate embeddings or run similarity scoring.
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `file` | file | Yes | Only `.xlsx` files are supported. Maximum upload size is 5MB. |
+| `sheetName` | string | No | Optional worksheet name. Defaults to the first worksheet. |
+| `sourceType` | string | No | Defaults to `xlsx`. |
+| `sourceFilename` | string | No | Defaults to the uploaded original filename. |
+| `importBatchId` | string | No | Defaults to a generated value like `import-1777777777777`. |
+
+**Success Response:**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "mode": "commit",
+    "metadata": {
+      "sheet_name": "Topics",
+      "total_parsed_rows": 10,
+      "warnings": []
+    },
+    "import_report": {
+      "total_rows": 10,
+      "accepted_rows": 8,
+      "skipped_rows": 2,
+      "missing_title_rows": 1,
+      "incomplete_context_rows": 4,
+      "duplicate_title_rows": 1
+    },
+    "persistence_report": {
+      "attempted_records": 8,
+      "inserted_records": 8,
+      "failed_records": 0,
+      "skipped_records": 0,
+      "inserted_by_bucket": {
+        "historical": 6,
+        "current_session": 1,
+        "under_review": 1
+      },
+      "warnings": [],
+      "errors": []
+    }
+  }
+}
+```
+
+## Topic Import Errors
+
+Import errors use the same `status`, `message`, and `details` style:
+
+| Case | HTTP | `details.error_code` |
+|------|------|----------------------|
+| Missing file | `400` | `MISSING_FILE` |
+| Unsupported file extension | `400` | `UNSUPPORTED_FILE_TYPE` |
+| Worksheet not found | `400` | `WORKSHEET_NOT_FOUND` |
+| File larger than 5MB | `413` | `FILE_TOO_LARGE` |
 
 ## Error Responses
 

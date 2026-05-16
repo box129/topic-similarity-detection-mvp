@@ -2,13 +2,59 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const config = require('./config/env');
 const logger = require('./config/logger');
 // Lazy-load the similarity controller to avoid Prisma initialization blocking
 let similarityController;
+let topicImportController;
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler.middleware');
 
 const app = express();
+const IMPORT_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024;
+const importUploadDir = path.join(__dirname, '..', 'tmp', 'imports');
+
+const importUploadStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    fs.mkdirSync(importUploadDir, { recursive: true });
+    cb(null, importUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname || '');
+    const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+    cb(null, safeName);
+  }
+});
+
+const importUpload = multer({
+  storage: importUploadStorage,
+  limits: {
+    fileSize: IMPORT_UPLOAD_LIMIT_BYTES
+  }
+});
+
+const importUploadMiddleware = (req, res, next) => {
+  importUpload.single('file')(req, res, (error) => {
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        status: 'error',
+        message: 'Import file is too large.',
+        details: {
+          error_code: 'FILE_TOO_LARGE',
+          field: 'file'
+        }
+      });
+    }
+
+    if (error) {
+      return next(error);
+    }
+
+    return next();
+  });
+};
 
 // Middleware
 app.use(helmet());
@@ -68,6 +114,26 @@ app.post('/api/similarity/check', similarityRouteHandler);
 
 // Architecture alias — matches API spec
 app.post('/api/v1/check-similarity', similarityRouteHandler);
+
+const getTopicImportController = () => {
+  if (!topicImportController) {
+    topicImportController = require('./controllers/topicImport.controller');
+  }
+  return topicImportController;
+};
+
+const previewImportRouteHandler = (req, res, next) => {
+  getTopicImportController().previewTopicImport(req, res, next);
+};
+
+const commitImportRouteHandler = (req, res, next) => {
+  getTopicImportController().commitTopicImport(req, res, next);
+};
+
+app.post('/api/import/topics/preview', importUploadMiddleware, previewImportRouteHandler);
+app.post('/api/import/topics/commit', importUploadMiddleware, commitImportRouteHandler);
+app.post('/api/v1/import/topics/preview', importUploadMiddleware, previewImportRouteHandler);
+app.post('/api/v1/import/topics/commit', importUploadMiddleware, commitImportRouteHandler);
 
 // 404 handler (must be before error handler)
 app.use(notFoundHandler);
