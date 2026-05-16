@@ -4,7 +4,7 @@
 
 Import support exists because departmental research topic records are mostly spreadsheet-based and may be incomplete. Lecturer interview findings show that topic titles are usually available, but keywords, population, location, and study focus may be missing or inconsistent.
 
-The current import foundation is designed to tolerate incomplete records safely before any API upload flow, frontend import UI, embedding generation, or similarity integration is added.
+The current import foundation is designed to tolerate incomplete records safely while supporting backend preview and commit endpoints, before frontend import UI, embedding generation, or similarity integration is added.
 
 ## Current Flow
 
@@ -31,6 +31,18 @@ The import flow currently has three backend service layers:
   - Routes records by `lifecycle_bucket`.
   - Stores context and import metadata fields prepared in the Prisma schema.
   - Returns a persistence report with inserted, skipped, failed, and per-bucket counts.
+
+The backend also exposes preview and commit API endpoints:
+
+- `POST /api/import/topics/preview`
+  - Parses and normalizes an uploaded `.xlsx` file.
+  - Returns records and the import report.
+  - Does not persist records.
+
+- `POST /api/import/topics/commit`
+  - Parses and normalizes an uploaded `.xlsx` file.
+  - Persists accepted records by lifecycle bucket.
+  - Returns the import report and persistence report.
 
 ## Normalized Record Fields
 
@@ -84,16 +96,16 @@ Duplicate-title rows increment both `skipped_rows` and `duplicate_title_rows`.
 
 ## Current Limitations
 
-- Backend persistence service exists, but it is not exposed through an upload or admin API endpoint yet.
-- No frontend import UI yet.
+- Backend preview and commit endpoints exist, but no frontend import UI is wired to them yet.
 - No similarity scoring integration yet.
 - No embedding generation for imported records yet.
+- No authorization/admin protection is implemented for import endpoints yet.
 - CSV import remains separate from this `.xlsx` import workflow.
 
 ## Follow-Up Work
 
-- Add an API or admin import endpoint.
 - Add import validation UI and import result display.
+- Add authorization/admin protection for import endpoints.
 - Add embedding generation for imported records.
 - Integrate imported context fields into similarity scoring.
 - Test the workflow with real sample departmental records.
