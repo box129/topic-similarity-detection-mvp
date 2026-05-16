@@ -4,6 +4,10 @@ const { calculateJaccard } = require('../src/services/jaccard.service');
 const { calculateTfIdfSimilarity } = require('../src/services/tfidf.service');
 const sbertService = require('../src/services/sbert.service');
 const {
+  calculateContextSimilarity,
+  calculateContextAdjustedScore
+} = require('../src/services/contextSimilarity.service');
+const {
   normalizeScore,
   buildPrediction,
   buildConfusionMatrix,
@@ -50,15 +54,46 @@ function buildSummary(caseResults, scorerKeys) {
   }, {});
 }
 
+function roundDelta(value) {
+  return Math.round(value * 1000) / 1000;
+}
+
+function buildComparison(summary, baselineKey) {
+  const baseline = summary[baselineKey];
+  const contextAdjusted = summary.context_adjusted_combined;
+
+  if (!baseline || !contextAdjusted) {
+    return null;
+  }
+
+  return {
+    false_positive_delta: contextAdjusted.fp - baseline.fp,
+    f1_delta: roundDelta(contextAdjusted.f1 - baseline.f1)
+  };
+}
+
+function buildComparisons(summary, sbertAvailable) {
+  const comparisons = {
+    context_adjusted_vs_lexical_max: buildComparison(summary, 'lexical_max')
+  };
+
+  if (sbertAvailable) {
+    comparisons.context_adjusted_vs_sbert = buildComparison(summary, 'sbert');
+    comparisons.context_adjusted_vs_weighted_combined = buildComparison(summary, 'weighted_combined');
+  }
+
+  return comparisons;
+}
+
 async function runEvaluation() {
   const dataset = loadDataset();
   const sbertAvailable = await sbertService.checkHealth();
-  const scorerKeys = ['jaccard', 'tfidf', 'lexical_max'];
+  const scorerKeys = ['jaccard', 'tfidf', 'lexical_max', 'context_adjusted_combined'];
   const caseResults = [];
   const notes = [
     'Scores are normalized to 0.00-1.00 before risk classification.',
     'weighted_combined is evaluation-only and does not change production API behavior.',
-    'Current scoring uses topic titles only; context fields are recorded for future evaluation.'
+    'Current title-based scorers use topic titles only; context fields are used only by context_adjusted_combined.'
   ];
 
   if (sbertAvailable) {
@@ -73,6 +108,7 @@ async function runEvaluation() {
     const jaccardScore = normalizeScore(calculateJaccard(submittedTitle, existingTitle).score);
     const tfidfScore = normalizeScore(calculateTfIdfPairScore(submittedTitle, existingTitle, evaluationCase.id));
     const lexicalMaxScore = normalizeScore(Math.max(jaccardScore || 0, tfidfScore || 0));
+    const contextSimilarity = calculateContextSimilarity(evaluationCase.submitted, evaluationCase.existing);
     let sbertScore = null;
     let weightedCombinedScore = null;
 
@@ -87,16 +123,26 @@ async function runEvaluation() {
       }
     }
 
+    const contextAdjustedBaseScore = weightedCombinedScore !== null
+      ? weightedCombinedScore
+      : lexicalMaxScore;
+    const contextAdjustedCombinedScore = calculateContextAdjustedScore(
+      contextAdjustedBaseScore,
+      contextSimilarity
+    );
+
     const scores = {
       jaccard: jaccardScore,
       tfidf: tfidfScore,
-      lexical_max: lexicalMaxScore
+      lexical_max: lexicalMaxScore,
+      context_adjusted_combined: contextAdjustedCombinedScore
     };
 
     const predictions = {
       jaccard: buildPrediction(jaccardScore),
       tfidf: buildPrediction(tfidfScore),
-      lexical_max: buildPrediction(lexicalMaxScore)
+      lexical_max: buildPrediction(lexicalMaxScore),
+      context_adjusted_combined: buildPrediction(contextAdjustedCombinedScore)
     };
 
     if (sbertAvailable) {
@@ -111,17 +157,29 @@ async function runEvaluation() {
       category: evaluationCase.category,
       expected_label: evaluationCase.expected_label,
       expected_risk: evaluationCase.expected_risk,
+      context_score: contextSimilarity.score,
+      context_details: {
+        field_results: contextSimilarity.field_results,
+        match_count: contextSimilarity.match_count,
+        mismatch_count: contextSimilarity.mismatch_count,
+        missing_count: contextSimilarity.missing_count,
+        has_full_context_match: contextSimilarity.has_full_context_match
+      },
       scores,
       predictions
     });
   }
 
+  const summary = buildSummary(caseResults, scorerKeys);
   const report = {
     dataset_version: dataset.version,
     total_cases: dataset.cases.length,
     sbert_available: sbertAvailable,
     context_fields_recorded_but_not_scored: true,
-    summary: buildSummary(caseResults, scorerKeys),
+    context_fields_used_by_context_adjusted_combined: true,
+    production_scoring_unchanged: true,
+    summary,
+    comparisons: buildComparisons(summary, sbertAvailable),
     cases: caseResults,
     notes
   };
