@@ -61,9 +61,10 @@ function buildRecord(row) {
   const warnings = [];
   const lifecycleBucketFromField = normalizeLifecycleBucket(getAliasedValue(row, LIFECYCLE_ALIASES));
   const statusValue = Object.prototype.hasOwnProperty.call(row, 'status') ? row.status : undefined;
-  const lifecycleBucketFromStatus = normalizeLifecycleBucket(statusValue);
+  const normalizedStatusValue = normalizeString(statusValue);
+  const lifecycleBucketFromStatus = normalizeLifecycleBucket(normalizedStatusValue);
 
-  if (statusValue !== undefined && !lifecycleBucketFromStatus) {
+  if (normalizedStatusValue && !lifecycleBucketFromStatus) {
     warnings.push('status does not map to a lifecycle_bucket');
   }
 

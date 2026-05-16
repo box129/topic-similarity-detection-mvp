@@ -150,6 +150,21 @@ describe('Topic Import Normalization Service', () => {
     expect(result.records[0].warnings).toContain('status does not map to a lifecycle_bucket');
   });
 
+  test('should ignore missing or blank status without adding lifecycle warning', () => {
+    const result = normalizeTopicImportRows([
+      { title: 'Missing Status Topic' },
+      { title: 'Blank Status Topic', status: '' },
+      { title: 'Whitespace Status Topic', status: '   ' },
+      { title: 'Null Status Topic', status: null },
+      { title: 'Undefined Status Topic', status: undefined }
+    ]);
+
+    result.records.forEach(record => {
+      expect(record.lifecycle_bucket).toBe('historical');
+      expect(record.warnings).not.toContain('status does not map to a lifecycle_bucket');
+    });
+  });
+
   test('should throw when rows is not an array', () => {
     expect(() => normalizeTopicImportRows({ title: 'Not Array' })).toThrow('rows must be an array');
   });
