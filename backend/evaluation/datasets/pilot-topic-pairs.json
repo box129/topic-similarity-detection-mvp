@@ -1,0 +1,342 @@
+{
+  "version": "pilot-v1",
+  "description": "Controlled topic-pair evaluation dataset for undergraduate research topic similarity.",
+  "cases": [
+    {
+      "id": "case-001",
+      "category": "exact_duplicate",
+      "submitted": {
+        "title": "Knowledge of malaria prevention among mothers in Osogbo",
+        "keywords": ["malaria", "prevention", "mothers"],
+        "population": "Mothers of children under five",
+        "location": "Osogbo",
+        "study_focus": "Malaria prevention knowledge"
+      },
+      "existing": {
+        "title": "Knowledge of malaria prevention among mothers in Osogbo",
+        "keywords": ["malaria", "prevention", "mothers"],
+        "population": "Mothers of children under five",
+        "location": "Osogbo",
+        "study_focus": "Malaria prevention knowledge"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Exact duplicate title and context."
+    },
+    {
+      "id": "case-002",
+      "category": "near_duplicate",
+      "submitted": {
+        "title": "Factors affecting exclusive breastfeeding among nursing mothers in Ede",
+        "keywords": ["exclusive breastfeeding", "nursing mothers", "factors"],
+        "population": "Nursing mothers",
+        "location": "Ede",
+        "study_focus": "Exclusive breastfeeding barriers"
+      },
+      "existing": {
+        "title": "Influencing factors of exclusive breastfeeding practice among nursing mothers in Ede",
+        "keywords": ["exclusive breastfeeding", "practice", "nursing mothers"],
+        "population": "Nursing mothers",
+        "location": "Ede",
+        "study_focus": "Exclusive breastfeeding barriers"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Near-duplicate wording with same population, location, and focus."
+    },
+    {
+      "id": "case-003",
+      "category": "paraphrased_duplicate",
+      "submitted": {
+        "title": "Use of mobile reminders for antenatal clinic attendance in Ile-Ife",
+        "keywords": ["mobile reminders", "antenatal care", "attendance"],
+        "population": "Pregnant women",
+        "location": "Ile-Ife",
+        "study_focus": "Clinic attendance support"
+      },
+      "existing": {
+        "title": "SMS prompts to improve prenatal appointment attendance in Ile-Ife",
+        "keywords": ["SMS prompts", "prenatal appointments", "attendance"],
+        "population": "Pregnant women",
+        "location": "Ile-Ife",
+        "study_focus": "Clinic attendance support"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Low lexical overlap but similar meaning."
+    },
+    {
+      "id": "case-004",
+      "category": "same_disease_different_population",
+      "submitted": {
+        "title": "Awareness of hypertension screening among market traders",
+        "keywords": ["hypertension", "screening", "market traders"],
+        "population": "Market traders",
+        "location": "Osogbo",
+        "study_focus": "Screening awareness"
+      },
+      "existing": {
+        "title": "Awareness of hypertension screening among secondary school teachers",
+        "keywords": ["hypertension", "screening", "teachers"],
+        "population": "Secondary school teachers",
+        "location": "Osogbo",
+        "study_focus": "Screening awareness"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "MEDIUM",
+      "notes": "Same disease and focus but different population."
+    },
+    {
+      "id": "case-005",
+      "category": "same_disease_different_location",
+      "submitted": {
+        "title": "Knowledge of malaria prevention among mothers in Osogbo",
+        "keywords": ["malaria", "prevention", "mothers"],
+        "population": "Mothers of children under five",
+        "location": "Osogbo",
+        "study_focus": "Malaria prevention knowledge"
+      },
+      "existing": {
+        "title": "Knowledge of malaria prevention among mothers in Ibadan",
+        "keywords": ["malaria", "prevention", "mothers"],
+        "population": "Mothers of children under five",
+        "location": "Ibadan",
+        "study_focus": "Malaria prevention knowledge"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "MEDIUM",
+      "notes": "Same title pattern but different study location."
+    },
+    {
+      "id": "case-006",
+      "category": "same_population_different_focus",
+      "submitted": {
+        "title": "Breastfeeding knowledge among nursing mothers in Ede",
+        "keywords": ["breastfeeding", "knowledge", "nursing mothers"],
+        "population": "Nursing mothers",
+        "location": "Ede",
+        "study_focus": "Breastfeeding knowledge"
+      },
+      "existing": {
+        "title": "Immunization attitude among nursing mothers in Ede",
+        "keywords": ["immunization", "attitude", "nursing mothers"],
+        "population": "Nursing mothers",
+        "location": "Ede",
+        "study_focus": "Immunization attitude"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "LOW",
+      "notes": "Same population and location but different topic focus."
+    },
+    {
+      "id": "case-007",
+      "category": "unrelated_public_health",
+      "submitted": {
+        "title": "Perception of telemedicine services among rural patients",
+        "keywords": ["telemedicine", "rural patients", "perception"],
+        "population": "Rural patients",
+        "location": "Osun State",
+        "study_focus": "Telemedicine service perception"
+      },
+      "existing": {
+        "title": "Waste management practices among food vendors in urban markets",
+        "keywords": ["waste management", "food vendors", "markets"],
+        "population": "Food vendors",
+        "location": "Urban markets",
+        "study_focus": "Waste management practices"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "LOW",
+      "notes": "Clearly unrelated study areas."
+    },
+    {
+      "id": "case-008",
+      "category": "high_lexical_overlap_different_focus",
+      "submitted": {
+        "title": "Knowledge attitude and practice of malaria prevention among mothers",
+        "keywords": ["knowledge", "attitude", "practice", "malaria prevention"],
+        "population": "Mothers",
+        "location": "Osogbo",
+        "study_focus": "Malaria prevention"
+      },
+      "existing": {
+        "title": "Knowledge attitude and practice of family planning among mothers",
+        "keywords": ["knowledge", "attitude", "practice", "family planning"],
+        "population": "Mothers",
+        "location": "Osogbo",
+        "study_focus": "Family planning"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "MEDIUM",
+      "notes": "High lexical overlap but different study focus."
+    },
+    {
+      "id": "case-009",
+      "category": "fragmented_title",
+      "submitted": {
+        "title": "Hypertension screening market traders",
+        "keywords": ["hypertension", "screening", "market traders"],
+        "population": "Market traders",
+        "location": "Osogbo",
+        "study_focus": "Screening awareness"
+      },
+      "existing": {
+        "title": "Awareness of hypertension screening among market traders in Osogbo",
+        "keywords": ["hypertension", "screening", "market traders"],
+        "population": "Market traders",
+        "location": "Osogbo",
+        "study_focus": "Screening awareness"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Fragmented imported/submitted title should still match the full version."
+    },
+    {
+      "id": "case-010",
+      "category": "synonym_duplicate",
+      "submitted": {
+        "title": "Determinants of contraceptive use among married women",
+        "keywords": ["contraceptive use", "married women", "determinants"],
+        "population": "Married women",
+        "location": "Ile-Ife",
+        "study_focus": "Contraceptive use factors"
+      },
+      "existing": {
+        "title": "Factors influencing family planning uptake among married women",
+        "keywords": ["family planning", "uptake", "married women"],
+        "population": "Married women",
+        "location": "Ile-Ife",
+        "study_focus": "Contraceptive use factors"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Synonym-heavy paraphrase."
+    },
+    {
+      "id": "case-011",
+      "category": "same_population_location_different_topic",
+      "submitted": {
+        "title": "Nutritional status of under-five children in Ede",
+        "keywords": ["nutrition", "under-five children", "Ede"],
+        "population": "Under-five children",
+        "location": "Ede",
+        "study_focus": "Nutritional status"
+      },
+      "existing": {
+        "title": "Immunization uptake among under-five children in Ede",
+        "keywords": ["immunization", "under-five children", "Ede"],
+        "population": "Under-five children",
+        "location": "Ede",
+        "study_focus": "Immunization uptake"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "LOW",
+      "notes": "Same population and location but different health outcome."
+    },
+    {
+      "id": "case-012",
+      "category": "similar_intervention_different_context",
+      "submitted": {
+        "title": "Use of insecticide treated nets among pregnant women in Ife",
+        "keywords": ["insecticide treated nets", "pregnant women", "Ife"],
+        "population": "Pregnant women",
+        "location": "Ife",
+        "study_focus": "ITN use"
+      },
+      "existing": {
+        "title": "Use of insecticide treated nets among nursing mothers in Osogbo",
+        "keywords": ["insecticide treated nets", "nursing mothers", "Osogbo"],
+        "population": "Nursing mothers",
+        "location": "Osogbo",
+        "study_focus": "ITN use"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "MEDIUM",
+      "notes": "Similar intervention but different population and location."
+    },
+    {
+      "id": "case-013",
+      "category": "documentation_gap_paraphrase",
+      "submitted": {
+        "title": "Mobile app reminders for antenatal care attendance",
+        "keywords": ["mobile app", "reminders", "antenatal care"],
+        "population": "Pregnant women",
+        "location": "Ile-Ife",
+        "study_focus": "ANC attendance support"
+      },
+      "existing": {
+        "title": "Digital notification support for antenatal clinic adherence",
+        "keywords": ["digital notification", "antenatal clinic", "adherence"],
+        "population": "Pregnant women",
+        "location": "Ile-Ife",
+        "study_focus": "ANC attendance support"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Potential current-session documentation gap with paraphrased wording."
+    },
+    {
+      "id": "case-014",
+      "category": "under_review_paraphrase",
+      "submitted": {
+        "title": "Barriers to exclusive breastfeeding among first-time mothers",
+        "keywords": ["barriers", "exclusive breastfeeding", "first-time mothers"],
+        "population": "First-time mothers",
+        "location": "Osun State",
+        "study_focus": "Exclusive breastfeeding barriers"
+      },
+      "existing": {
+        "title": "Challenges affecting exclusive breastfeeding among primiparous mothers",
+        "keywords": ["challenges", "exclusive breastfeeding", "primiparous mothers"],
+        "population": "First-time mothers",
+        "location": "Osun State",
+        "study_focus": "Exclusive breastfeeding barriers"
+      },
+      "expected_label": "similar",
+      "expected_risk": "HIGH",
+      "notes": "Under-review style paraphrase."
+    },
+    {
+      "id": "case-015",
+      "category": "high_lexical_overlap_different_object",
+      "submitted": {
+        "title": "Use of health services among adolescents in secondary schools",
+        "keywords": ["health services", "adolescents", "secondary schools"],
+        "population": "Adolescents",
+        "location": "Secondary schools",
+        "study_focus": "Health service use"
+      },
+      "existing": {
+        "title": "Use of social media among adolescents in secondary schools",
+        "keywords": ["social media", "adolescents", "secondary schools"],
+        "population": "Adolescents",
+        "location": "Secondary schools",
+        "study_focus": "Social media use"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "MEDIUM",
+      "notes": "Similar wording but different object of study."
+    },
+    {
+      "id": "case-016",
+      "category": "clearly_unrelated",
+      "submitted": {
+        "title": "Lassa fever awareness among rural residents",
+        "keywords": ["Lassa fever", "awareness", "rural residents"],
+        "population": "Rural residents",
+        "location": "Osun State",
+        "study_focus": "Lassa fever awareness"
+      },
+      "existing": {
+        "title": "Academic performance among computer science students",
+        "keywords": ["academic performance", "computer science", "students"],
+        "population": "Computer science students",
+        "location": "University campus",
+        "study_focus": "Academic performance"
+      },
+      "expected_label": "not_similar",
+      "expected_risk": "LOW",
+      "notes": "Different domain, population, and focus."
+    }
+  ]
+}

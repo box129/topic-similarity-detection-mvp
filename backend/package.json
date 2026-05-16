@@ -9,6 +9,7 @@
     "test": "jest --coverage",
     "test:coverage": "jest --coverage --coverageReporters=text --coverageReporters=html",
     "import:fixture": "node scripts/generate-import-sample-fixture.js",
+    "evaluation:topics": "node scripts/run-topic-evaluation.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
