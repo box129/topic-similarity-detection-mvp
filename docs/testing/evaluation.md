@@ -1,6 +1,6 @@
 # Topic Similarity Evaluation Harness
 
-This guide describes the Phase 3 pilot evaluation harness for measuring topic-pair similarity behavior.
+This guide describes the Phase 3/4 pilot evaluation harness for measuring topic-pair similarity behavior.
 
 The harness is project tooling only. It does not change production scoring, API responses, frontend behavior, Prisma schema, embeddings, or import logic.
 
@@ -36,7 +36,7 @@ It contains 16 manually readable topic pairs covering:
 - fragmented title records
 - clearly unrelated topics
 
-Each case records title, keywords, population, location, and study focus. Current scoring uses topic titles only, so context fields are recorded but not scored yet.
+Each case records title, keywords, population, location, and study focus. Existing title-based scorers use topic titles only, so the report keeps `context_fields_recorded_but_not_scored: true` for those scorers.
 
 ## Run The Harness
 
@@ -72,6 +72,7 @@ The report includes:
 - `lexical_max`
 - `sbert`, when the SBERT service is available
 - `weighted_combined`, when SBERT is available
+- `context_adjusted_combined`
 
 `weighted_combined` is evaluation-only and uses:
 
@@ -83,16 +84,55 @@ This does not change the production controller or public API contract.
 
 If SBERT is unavailable, the harness still completes with Jaccard, TF-IDF, and lexical-max metrics. SBERT and weighted-combined metrics are skipped.
 
+## Context-Adjusted Evaluation Scorer
+
+`context_adjusted_combined` is evaluation-only. It does not change production scoring, controllers, endpoint responses, Prisma schema, frontend behavior, imports, or embeddings.
+
+The context scorer compares:
+
+- `population`
+- `location`
+- `study_focus`
+
+Each context field receives a deterministic score:
+
+- exact normalized match: `1`
+- missing on either side: `0.75`
+- clear mismatch: `0`
+
+The context score is the average of the three field scores.
+
+The adjusted score is:
+
+```text
+adjusted = baseScore * contextScore^2 + fullContextMatchBonus
+```
+
+`fullContextMatchBonus` is `0.20` only when all three context fields are exact normalized matches and no field is missing or mismatched.
+
+When SBERT is available, `context_adjusted_combined` uses `weighted_combined` as its base score. When SBERT is unavailable, it uses `lexical_max`.
+
+The report includes:
+
+```json
+{
+  "context_fields_recorded_but_not_scored": true,
+  "context_fields_used_by_context_adjusted_combined": true,
+  "production_scoring_unchanged": true
+}
+```
+
 ## Current Limitations
 
-- Context fields are recorded but not scored yet.
+- Context fields are used only by the evaluation-only `context_adjusted_combined` scorer.
+- Production similarity scoring is still title-based.
 - The dataset is a pilot, not a final validation dataset.
 - TF-IDF pair scoring is measured against one comparison topic, while production API scoring compares against all database topics.
 - SBERT behavior depends on the local SBERT service and whether it is using real semantic embeddings or fallback embeddings.
 
 ## Future Work
 
-- Add context-aware scoring using population, location, and study focus.
+- Decide whether context-aware scoring should move from evaluation-only tooling into production similarity behavior.
 - Expand the dataset with lecturer-reviewed cases.
 - Store evaluation reports when repeatable comparison history is needed.
 - Compare production endpoint behavior against this pairwise harness.
