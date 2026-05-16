@@ -44,6 +44,8 @@ The backend also exposes preview and commit API endpoints:
   - Persists accepted records by lifecycle bucket.
   - Returns the import report and persistence report.
 
+A repeatable smoke-test workflow is documented in [`../testing/import-smoke.md`](../testing/import-smoke.md).
+
 ## Normalized Record Fields
 
 Each accepted record can include:
