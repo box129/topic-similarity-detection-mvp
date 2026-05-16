@@ -4,15 +4,15 @@
 
 Import support exists because departmental research topic records are mostly spreadsheet-based and may be incomplete. Lecturer interview findings show that topic titles are usually available, but keywords, population, location, and study focus may be missing or inconsistent.
 
-The current import foundation is designed to tolerate incomplete records safely before any database persistence, API upload flow, or frontend import UI is added.
+The current import foundation is designed to tolerate incomplete records safely before any API upload flow, frontend import UI, embedding generation, or similarity integration is added.
 
 ## Current Flow
 
 ```text
-.xlsx file -> worksheet rows -> plain row objects -> normalizer -> records + report
+.xlsx file -> worksheet rows -> plain row objects -> normalizer -> records + report -> persistence service
 ```
 
-The import flow currently has two backend service layers:
+The import flow currently has three backend service layers:
 
 - `backend/src/services/topicImportFile.service.js`
   - Reads `.xlsx` files with `exceljs`.
@@ -25,6 +25,12 @@ The import flow currently has two backend service layers:
   - Handles flexible title aliases and optional context fields.
   - Preserves the original row as `raw_record`.
   - Returns normalized records plus an import report.
+
+- `backend/src/services/topicImportPersistence.service.js`
+  - Persists normalized records to Prisma models.
+  - Routes records by `lifecycle_bucket`.
+  - Stores context and import metadata fields prepared in the Prisma schema.
+  - Returns a persistence report with inserted, skipped, failed, and per-bucket counts.
 
 ## Normalized Record Fields
 
@@ -78,18 +84,17 @@ Duplicate-title rows increment both `skipped_rows` and `duplicate_title_rows`.
 
 ## Current Limitations
 
-- No database writes yet.
-- Prisma schema fields are prepared for import context and metadata, but the import workflow does not write them to the database yet.
-- No upload or admin import API endpoint yet.
+- Backend persistence service exists, but it is not exposed through an upload or admin API endpoint yet.
 - No frontend import UI yet.
 - No similarity scoring integration yet.
+- No embedding generation for imported records yet.
 - CSV import remains separate from this `.xlsx` import workflow.
 
 ## Follow-Up Work
 
-- Persist imported context and metadata fields through the database import workflow.
-- Add database lifecycle persistence for historical, current-session, and under-review topics.
 - Add an API or admin import endpoint.
 - Add import validation UI and import result display.
+- Add embedding generation for imported records.
+- Integrate imported context fields into similarity scoring.
 - Test the workflow with real sample departmental records.
 - Add evaluation cases for incomplete and spreadsheet-imported records.
